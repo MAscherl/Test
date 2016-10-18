@@ -1,0 +1,408 @@
+OBJECT Table 5059050 Time Charter Cash Flow Line
+{
+  OBJECT-PROPERTIES
+  {
+    Date=29.08.16;
+    Time=18:41:29;
+    Modified=Yes;
+    Version List=PAM9.00,TC;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=Yes;
+    OnDelete=VAR
+               LO_RE_TCCashFlow@1119430000 : Record 5059050;
+             BEGIN
+               LO_RE_TCCashFlow.SETRANGE("Attached to Entry No.","Entry No.");
+               LO_RE_TCCashFlow.DELETEALL;
+             END;
+
+    CaptionML=[DEU=Time Charter Cash Flow Line;
+               ENU=Time Charter Cash Flow Line];
+    LookupPageID=Page5059125;
+    DrillDownPageID=Page5059125;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Entry No.           ;Integer       ;CaptionML=[DEU=Entry No.;
+                                                              ENU=Entry No.] }
+    { 2   ;   ;Order No.           ;Code20        ;CaptionML=[DEU=Order No.;
+                                                              ENU=Order No.] }
+    { 3   ;   ;Company             ;Text30        ;CaptionML=[DEU=Company;
+                                                              ENU=Company] }
+    { 4   ;   ;Order LineNo        ;Integer       ;CaptionML=[DEU=Order LineNo;
+                                                              ENU=Order LineNo] }
+    { 5   ;   ;Position            ;Integer       ;CaptionML=[DEU=Position;
+                                                              ENU=Position] }
+    { 6   ;   ;Invoice Category Code;Code20       ;TableRelation="Time Charter Invoice Category";
+                                                   OnValidate=VAR
+                                                                TCInvoiceCategory@1000000000 : Record 5059043;
+                                                              BEGIN
+                                                                IF TCInvoiceCategory.GET("Invoice Category Code") THEN BEGIN
+                                                                  TCInvoiceCategory.TESTFIELD("Resource No.");
+                                                                  VALIDATE("Resource No.",TCInvoiceCategory."Resource No.");
+                                                                  IF TCInvoiceCategory."Off Hire" THEN
+                                                                    Type := Type::"Off Hire";
+                                                                  IF TCInvoiceCategory.Bunker THEN
+                                                                    Type := Type::Bunker;
+                                                                  IF TCInvoiceCategory.Commission THEN
+                                                                    Type := Type::Commission;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Invoice Category Code;
+                                                              ENU=Invoice Category Code] }
+    { 20  ;   ;Resource No.        ;Code20        ;TableRelation=Resource;
+                                                   CaptionML=[DEU=Resource No.;
+                                                              ENU=Resource No.] }
+    { 21  ;   ;Date from           ;Date          ;OnValidate=BEGIN
+                                                                "Due Date" := "Date from";
+                                                                "Date until" := "Date from";
+                                                                "Time from" := 0T;
+                                                                "Time until" := 0T;
+                                                                CalcOffHireDays;
+                                                              END;
+
+                                                   CaptionML=[DEU=Date from;
+                                                              ENU=Date from] }
+    { 22  ;   ;Time from           ;Time          ;OnValidate=BEGIN
+                                                                CalcOffHireDays;
+                                                              END;
+
+                                                   CaptionML=[DEU=Time from;
+                                                              ENU=Time from] }
+    { 23  ;   ;Date until          ;Date          ;OnValidate=BEGIN
+                                                                CalcOffHireDays;
+                                                              END;
+
+                                                   CaptionML=[DEU=Date until;
+                                                              ENU=Date until] }
+    { 24  ;   ;Time until          ;Time          ;OnValidate=BEGIN
+                                                                CalcOffHireDays;
+                                                              END;
+
+                                                   CaptionML=[DEU=Time until;
+                                                              ENU=Time until] }
+    { 25  ;   ;Quantity            ;Decimal       ;OnValidate=BEGIN
+                                                                IF ("Price per" = "Price per"::Month) THEN BEGIN
+                                                                  IF ("Date from" <> 0D) AND ("Date until" <>0D) THEN BEGIN
+                                                                    Month := -((CALCDATE('<-CM>', "Date from") - CALCDATE('<+CM>', "Date until" )-1));
+                                                                    Amount := ROUND((("Unit Price"/Month) * Quantity)* "Calculable %" / 100);
+                                                                  END;
+                                                                END ELSE
+                                                                  Amount := ROUND(("Unit Price" * Quantity)* "Calculable %" / 100);
+
+                                                                UpdateAmounts;
+                                                              END;
+
+                                                   CaptionML=[DEU=Quantity;
+                                                              ENU=Quantity];
+                                                   DecimalPlaces=0:5 }
+    { 26  ;   ;Price per           ;Option        ;OnValidate=BEGIN
+                                                                VALIDATE("Unit Price","Unit Price");
+                                                              END;
+
+                                                   CaptionML=[DEU=Price per;
+                                                              ENU=Price per];
+                                                   OptionCaptionML=[DEU=Day,Month;
+                                                                    ENU=Day,Month];
+                                                   OptionString=Day,Month;
+                                                   Editable=No }
+    { 27  ;   ;Unit Price          ;Decimal       ;OnValidate=BEGIN
+                                                                IF ("Price per" = "Price per"::Month) THEN BEGIN
+                                                                  IF ("Date from" <> 0D) AND ("Date until" <>0D) THEN BEGIN
+                                                                    Month := -((CALCDATE('<-CM>', "Date from") - CALCDATE('<+CM>', "Date until" )-1));
+                                                                    VALIDATE(Amount, ROUND((("Unit Price"/Month) * Quantity)* "Calculable %" / 100));
+                                                                  END;
+                                                                END ELSE
+                                                                  VALIDATE(Amount, ROUND(("Unit Price" * Quantity)* "Calculable %" / 100));
+                                                              END;
+
+                                                   CaptionML=[DEU=Price per;
+                                                              ENU=Price per] }
+    { 28  ;   ;Amount              ;Decimal       ;OnValidate=BEGIN
+                                                                UpdateAmounts;
+                                                              END;
+
+                                                   CaptionML=[DEU=Amount;
+                                                              ENU=Amount];
+                                                   AutoFormatType=1 }
+    { 29  ;   ;Currency Code       ;Code10        ;TableRelation="Master Currency";
+                                                   OnValidate=VAR
+                                                                Currency@1119430000 : Record 5058802;
+                                                                LO_RE_OrderCharteringFreight@1119430001 : Record 5059041;
+                                                              BEGIN
+                                                                UpdateAmounts;
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              LookUpCurrencyCode;
+                                                            END;
+
+                                                   ValidateTableRelation=No;
+                                                   CaptionML=[DEU=Currency;
+                                                              ENU=Currency] }
+    { 30  ;   ;Period No           ;Integer       ;CaptionML=[DEU=Period No;
+                                                              ENU=Period No] }
+    { 31  ;   ;Invoiced            ;Boolean       ;CaptionML=[DEU=Invoiced;
+                                                              ENU=Invoiced] }
+    { 32  ;   ;Paid                ;Boolean       ;CaptionML=[DEU=Paid;
+                                                              ENU=Paid] }
+    { 33  ;   ;Due Date            ;Date          ;CaptionML=[DEU=Due Date;
+                                                              ENU=Due Date] }
+    { 34  ;   ;FirstInvoice        ;Boolean       ;CaptionML=[DEU=FirstInvoice;
+                                                              ENU=FirstInvoice] }
+    { 35  ;   ;LastInvoice         ;Boolean       ;CaptionML=[DEU=LastInvoice;
+                                                              ENU=LastInvoice] }
+    { 36  ;   ;Hire Period         ;Integer       ;OnValidate=BEGIN
+                                                                ChangeHirePeriod;
+                                                                CalcOffHireDays;
+                                                              END;
+
+                                                   CaptionML=[DEU=Hire Period;
+                                                              ENU=Hire Period] }
+    { 37  ;   ;Type                ;Option        ;CaptionML=[DEU=Type;
+                                                              ENU=Type];
+                                                   OptionCaptionML=[DEU=" ,Commission,Bunker,Off Hire";
+                                                                    ENU=" ,Commission,Bunker,Off Hire"];
+                                                   OptionString=[ ,Commission,Bunker,Off Hire] }
+    { 38  ;   ;TCDays              ;Decimal       ;CaptionML=[DEU=TCDays;
+                                                              ENU=TCDays] }
+    { 40  ;   ;Attached to Entry No.;Integer      ;CaptionML=[DEU=Attached to Line No.;
+                                                              ENU=Attached to Line No.] }
+    { 41  ;   ;Description         ;Text50        ;CaptionML=[DEU=Description;
+                                                              ENU=Description] }
+    { 42  ;   ;Description 2       ;Text50        ;CaptionML=[DEU=Description 2;
+                                                              ENU=Description 2] }
+    { 43  ;   ;Document Type       ;Option        ;CaptionML=[DEU=Document Type;
+                                                              ENU=Document Type];
+                                                   OptionCaptionML=[DEU=Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order;
+                                                                    ENU=Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order];
+                                                   OptionString=Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order }
+    { 44  ;   ;Document No.        ;Code20        ;CaptionML=[DEU=Document No.;
+                                                              ENU=Document No.] }
+    { 45  ;   ;Payment Date        ;Date          ;CaptionML=[DEU=Payment Date;
+                                                              ENU=Payment Date] }
+    { 47  ;   ;BunkerCurrFaktor    ;Decimal       ;CaptionML=[DEU=BunkerCurrFaktor;
+                                                              ENU=BunkerCurrFaktor] }
+    { 48  ;   ;BunkerCurrCode1     ;Code10        ;CaptionML=[DEU=BunkerCurrCode1;
+                                                              ENU=BunkerCurrCode1] }
+    { 49  ;   ;BunkerCurrCode2     ;Code10        ;CaptionML=[DEU=BunkerCurrCode2;
+                                                              ENU=BunkerCurrCode2] }
+    { 50  ;   ;Other               ;Boolean       ;CaptionML=[DEU=Other;
+                                                              ENU=Other] }
+    { 51  ;   ;Target Quantity     ;Decimal       ;CaptionML=[DEU=Target Quantity;
+                                                              ENU=Target Quantity] }
+    { 52  ;   ;HireStatement       ;Boolean       ;CaptionML=[DEU=Hire Statement;
+                                                              ENU=Hire Statement] }
+    { 60  ;   ;DateFrom            ;Date          ;CaptionML=[DEU=Date From;
+                                                              ENU=Date From] }
+    { 61  ;   ;TimeFrom            ;Time          ;CaptionML=[DEU=Time From;
+                                                              ENU=Time From] }
+    { 62  ;   ;DateTo              ;Date          ;CaptionML=[DEU=Date To;
+                                                              ENU=Date To] }
+    { 63  ;   ;TimeTo              ;Time          ;CaptionML=[DEU=Time To;
+                                                              ENU=Time To] }
+    { 64  ;   ;BasePrice           ;Decimal       ;CaptionML=[DEU=Base Price;
+                                                              ENU=Base Price] }
+    { 65  ;   ;VoyageNo            ;Code20        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Time Charter Order"."Voyage No." WHERE (Order No.=FIELD(Order No.)));
+                                                   CaptionML=[DEU=Voyage No.;
+                                                              ENU=Voyage No.];
+                                                   Description=FlowField;
+                                                   Editable=No }
+    { 66  ;   ;Liquidity Due Date  ;Date          ;CaptionML=[DEU=Liquidity Due Date;
+                                                              ENU=Liquidity Due Date] }
+    { 67  ;   ;Indentation         ;Integer       ;CaptionML=[DEU=Indentation;
+                                                              ENU=Indentation] }
+    { 68  ;   ;Indentation Entry No.;Integer      ;CaptionML=[DEU=Indentation Entry No.;
+                                                              ENU=Indentation Entry No.] }
+    { 69  ;   ;Accepted            ;Boolean       ;CaptionML=[DEU=Accepted;
+                                                              ENU=Accepted] }
+    { 70  ;   ;Manual              ;Boolean       ;CaptionML=[DEU=Manual;
+                                                              ENU=Manual] }
+    { 71  ;   ;Offhire days        ;Decimal       ;CaptionML=[DEU=Offhire days;
+                                                              ENU=Offhire days] }
+    { 100 ;   ;Invoice Period Line No.;Integer    ;CaptionML=[DEU=Invoice Period Line No.;
+                                                              ENU=Invoice Period Line No.] }
+    { 101 ;   ;Calculable %        ;Decimal       ;OnValidate=BEGIN
+                                                                VALIDATE(Amount, ROUND(("Unit Price" * Quantity)* "Calculable %" / 100));
+                                                                CalcOffHireDays;
+                                                              END;
+
+                                                   CaptionML=[DEU=Calculable %;
+                                                              ENU=Calculable %];
+                                                   MinValue=0;
+                                                   MaxValue=100 }
+    { 102 ;   ;Original Amount     ;Decimal       ;CaptionML=[DEU=Ursprungsbetrag;
+                                                              ENU=Original Amount];
+                                                   BlankZero=Yes;
+                                                   Description=P0055;
+                                                   Editable=No;
+                                                   AutoFormatType=1 }
+    { 103 ;   ;Show on Documents   ;Boolean       ;CaptionML=[DEU=Show on Documents;
+                                                              ENU=Show on Documents] }
+    { 104 ;   ;Line Amount         ;Decimal       ;OnValidate=BEGIN
+                                                                TESTFIELD(Type);
+                                                                TESTFIELD(Quantity);
+                                                                TESTFIELD("Unit Price");
+                                                                GetTimeCharterHeader;
+                                                                "Line Amount" := ROUND("Line Amount",MasterCurrency."Amount Rounding Precision");
+                                                              END;
+
+                                                   CaptionML=[DEU=Line Amount;
+                                                              ENU=Line Amount];
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr="Currency Code" }
+  }
+  KEYS
+  {
+    {    ;Entry No.                               ;Clustered=Yes }
+    {    ;Order No.,Position                       }
+    {    ;Order No.,Period No                     ;MaintainSQLIndex=No;
+                                                   MaintainSIFTIndex=No }
+    {    ;Attached to Entry No.                    }
+    {    ;Indentation Entry No.                    }
+    {    ;Order No.,Invoiced                      ;SumIndexFields=Amount }
+    {    ;Order No.,Hire Period,Indentation,Accepted;
+                                                   SumIndexFields=Offhire days }
+    {    ;Due Date,Invoiced                        }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      GLSetup@1119430001 : Record 98;
+      SalesSetup@1000000000 : Record 311;
+      Text001@1000000001 : TextConst 'DEU=Hire Period %1 does not exist.;ENU=Hire Period %1 does not exist.';
+      MasterCurrency@1000000004 : Record 5058802;
+      CompanyCurrency@1000000005 : Record 5058801;
+      Month@1000000002 : Decimal;
+      TimeCharterOrder@1000000003 : Record 5059040;
+
+    PROCEDURE LookUpCurrencyCode@1119430001() : Boolean;
+    VAR
+      Currency@1119430001 : Record 5058802;
+      TempCurrency@1119430000 : TEMPORARY Record 5058802;
+    BEGIN
+      //Currency.SETRANGE("List Invoice Tool",TRUE);
+      //Currency.SETRANGE("Buying/Selling Rate",Currency."Buying/Selling Rate"::"0");
+      IF Currency.FINDSET THEN REPEAT
+        TempCurrency := Currency;
+        TempCurrency.INSERT;
+      UNTIL Currency.NEXT = 0;
+      GLSetup.GET;
+      IF GLSetup."LCY Code" <> '' THEN BEGIN
+        CLEAR(Currency);
+        IF NOT Currency.GET(GLSetup."LCY Code") THEN BEGIN
+          Currency.Description := GLSetup."LCY Code";
+        END;
+        TempCurrency.INIT;
+        TempCurrency.Code := GLSetup."LCY Code";
+        TempCurrency.Description := Currency.Description;
+        IF TempCurrency.INSERT THEN;
+      END;
+      //IF FORM.RUNMODAL(0,TempCurrency) = ACTION::LookupOK THEN BEGIN
+       // VALIDATE("Currency Code",TempCurrency.Code);
+        //EXIT(TRUE);
+      //END;
+    END;
+
+    LOCAL PROCEDURE CalcOffHireDays@1000000002();
+    VAR
+      TCCashFlowLine@1000000000 : Record 5059050;
+      TCInvoiceCategory@1000000001 : Record 5059043;
+      Month@1000000002 : Decimal;
+    BEGIN
+      IF Type = Type::"Off Hire" THEN BEGIN
+        IF "Date from" > "Date until" THEN BEGIN
+          VALIDATE("Offhire days", 0);
+          EXIT;
+        END;
+
+      IF ("Date from" <> 0D) AND ("Date until" <>0D) THEN BEGIN
+          "Offhire days" := "Date until" - "Date from";
+        END ELSE BEGIN
+         "Offhire days" := 0;
+        END;
+
+        IF ("Time until" = 0T) AND ("Time from" <> 0T) THEN BEGIN
+          EVALUATE("Time until", '00:00:00');
+        END;
+
+        IF ("Time until" <> 0T) AND ("Time from" = 0T) THEN BEGIN
+          EVALUATE("Time until", '00:00:00');
+        END;
+
+        IF ("Time until" <> 0T) AND ("Time from" <> 0T) THEN BEGIN
+          "Offhire days" := "Offhire days" + (("Time until" - "Time from") / 86400000);
+        END ELSE BEGIN
+          "Offhire days" := "Offhire days" + 1;
+        END;
+        VALIDATE(Quantity,"Offhire days");
+        VALIDATE("Offhire days", "Offhire days" * "Calculable %" / 100);
+      END ELSE
+        "Offhire days" := 0;
+    END;
+
+    LOCAL PROCEDURE ChangeHirePeriod@1000000008();
+    VAR
+      TCCashFlowLine@1000000000 : Record 5059050;
+    BEGIN
+      IF xRec."Hire Period" <> "Hire Period" THEN BEGIN
+        TESTFIELD(Manual);
+        TCCashFlowLine.RESET;
+        TCCashFlowLine.SETCURRENTKEY("Order No.","Hire Period",Indentation);
+        TCCashFlowLine.SETRANGE("Order No.","Order No.");
+        TCCashFlowLine.SETRANGE("Hire Period","Hire Period");
+        TCCashFlowLine.SETFILTER(Indentation,'>%1',0);
+        IF TCCashFlowLine.FINDLAST THEN BEGIN
+          "Attached to Entry No." := TCCashFlowLine."Attached to Entry No.";
+          "Indentation Entry No.":= TCCashFlowLine."Indentation Entry No.";
+        END  ELSE
+          ERROR(Text001,"Hire Period");
+      END;
+    END;
+
+    LOCAL PROCEDURE GetTimeCharterHeader@1() : Boolean;
+    BEGIN
+      TESTFIELD("Order No.");
+      IF "Order No." <> TimeCharterOrder."Order No." THEN BEGIN
+        GLSetup.GET;
+        TimeCharterOrder.GET("Order No.");
+        IF (TimeCharterOrder."Currency Code" = '') OR (TimeCharterOrder."Currency Code" = GLSetup."LCY Code") THEN
+          MasterCurrency.InitRoundingPrecision(GLSetup."LCY Code")
+        ELSE BEGIN
+          TimeCharterOrder.TESTFIELD("Currency Factor");
+          MasterCurrency.GET(GLSetup."LCY Code", TimeCharterOrder."Currency Code");
+          MasterCurrency.TESTFIELD("Amount Rounding Precision");
+        END;
+      END;
+    END;
+
+    PROCEDURE UpdateAmounts@3();
+    VAR
+      LineDiscountAmount@1000 : Decimal;
+    BEGIN
+      IF GetTimeCharterHeader THEN BEGIN
+
+        IF NOT Invoiced THEN BEGIN
+          IF TimeCharterOrder."Commission %" <> 0 THEN BEGIN
+            LineDiscountAmount :=
+              ROUND(
+                ROUND(Quantity * "Unit Price", MasterCurrency."Amount Rounding Precision") *
+                TimeCharterOrder."Commission %" / 100, MasterCurrency."Amount Rounding Precision");
+            "Line Amount" := LineDiscountAmount * "Calculable %" / 100;
+          END ELSE
+            "Line Amount" := ROUND((Quantity * "Unit Price") * "Calculable %" / 100);
+        END;
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

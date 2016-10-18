@@ -1,0 +1,317 @@
+OBJECT Table 311 Sales & Receivables Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=13.09.16;
+    Time=08:42:52;
+    Modified=Yes;
+    Version List=NAVW19.00.00.43897,NAVDACH9.00.00.43897,PAM9.00,TC;
+  }
+  PROPERTIES
+  {
+    CaptionML=[DEU=Debitoren & Verkauf Einr.;
+               ENU=Sales & Receivables Setup];
+    LookupPageID=Page459;
+    DrillDownPageID=Page459;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Primary Key         ;Code10        ;CaptionML=[DEU=PrimÑrschlÅssel;
+                                                              ENU=Primary Key] }
+    { 2   ;   ;Discount Posting    ;Option        ;CaptionML=[DEU=Rabattbuchung;
+                                                              ENU=Discount Posting];
+                                                   OptionCaptionML=[DEU=Keine Rabatte,Rechnungsrabatte,Zeilenrabatte,Alle Rabatte;
+                                                                    ENU=No Discounts,Invoice Discounts,Line Discounts,All Discounts];
+                                                   OptionString=No Discounts,Invoice Discounts,Line Discounts,All Discounts }
+    { 4   ;   ;Credit Warnings     ;Option        ;CaptionML=[DEU=Kreditlimitwarnung;
+                                                              ENU=Credit Warnings];
+                                                   OptionCaptionML=[DEU=Beide Warnungen,Kreditlimit,FÑlliger Saldo,Keine Warnung;
+                                                                    ENU=Both Warnings,Credit Limit,Overdue Balance,No Warning];
+                                                   OptionString=Both Warnings,Credit Limit,Overdue Balance,No Warning }
+    { 5   ;   ;Stockout Warning    ;Boolean       ;InitValue=Yes;
+                                                   CaptionML=[DEU=Bestandswarnung;
+                                                              ENU=Stockout Warning] }
+    { 6   ;   ;Shipment on Invoice ;Boolean       ;AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Lieferschein b. VK-Rechnung;
+                                                              ENU=Shipment on Invoice] }
+    { 7   ;   ;Invoice Rounding    ;Boolean       ;CaptionML=[DEU=Rechnungsrundung;
+                                                              ENU=Invoice Rounding] }
+    { 8   ;   ;Ext. Doc. No. Mandatory;Boolean    ;CaptionML=[DEU=Ext. Belegnr. erforderlich;
+                                                              ENU=Ext. Doc. No. Mandatory] }
+    { 9   ;   ;Customer Nos.       ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Debitorennummern;
+                                                              ENU=Customer Nos.] }
+    { 10  ;   ;Quote Nos.          ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Angebotsnummern;
+                                                              ENU=Quote Nos.] }
+    { 11  ;   ;Order Nos.          ;Code10        ;TableRelation="No. Series";
+                                                   AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Auftragsnummern;
+                                                              ENU=Order Nos.] }
+    { 12  ;   ;Invoice Nos.        ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Rechnungsnummern;
+                                                              ENU=Invoice Nos.] }
+    { 13  ;   ;Posted Invoice Nos. ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Gebuchte Rechnungsnummern;
+                                                              ENU=Posted Invoice Nos.] }
+    { 14  ;   ;Credit Memo Nos.    ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Gutschriftsnummern;
+                                                              ENU=Credit Memo Nos.] }
+    { 15  ;   ;Posted Credit Memo Nos.;Code10     ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Gebuchte Gutschriftsnummern;
+                                                              ENU=Posted Credit Memo Nos.] }
+    { 16  ;   ;Posted Shipment Nos.;Code10        ;TableRelation="No. Series";
+                                                   AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Gebuchte Lieferungsnummern;
+                                                              ENU=Posted Shipment Nos.] }
+    { 17  ;   ;Reminder Nos.       ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Mahnungsnummern;
+                                                              ENU=Reminder Nos.] }
+    { 18  ;   ;Issued Reminder Nos.;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Registrierte Mahnungsnummern;
+                                                              ENU=Issued Reminder Nos.] }
+    { 19  ;   ;Fin. Chrg. Memo Nos.;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Zinsrechnungsnummern;
+                                                              ENU=Fin. Chrg. Memo Nos.] }
+    { 20  ;   ;Issued Fin. Chrg. M. Nos.;Code10   ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Regist. Zinsrechnungsnummern;
+                                                              ENU=Issued Fin. Chrg. M. Nos.] }
+    { 21  ;   ;Posted Prepmt. Inv. Nos.;Code10    ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Geb. Vorauszahlungs-Rechnungsnr.;
+                                                              ENU=Posted Prepmt. Inv. Nos.] }
+    { 22  ;   ;Posted Prepmt. Cr. Memo Nos.;Code10;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Geb. Vorauszahlungs-Gutschriftennr.;
+                                                              ENU=Posted Prepmt. Cr. Memo Nos.] }
+    { 23  ;   ;Blanket Order Nos.  ;Code10        ;TableRelation="No. Series";
+                                                   AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Rahmenauftragsnummern;
+                                                              ENU=Blanket Order Nos.] }
+    { 24  ;   ;Calc. Inv. Discount ;Boolean       ;CaptionML=[DEU=Rechnungsrab. berechnen;
+                                                              ENU=Calc. Inv. Discount] }
+    { 25  ;   ;Appln. between Currencies;Option   ;AccessByPermission=TableData 4=R;
+                                                   CaptionML=[DEU=WÑhrungsausgleich;
+                                                              ENU=Appln. between Currencies];
+                                                   OptionCaptionML=[DEU=Kein,EWU,Alle;
+                                                                    ENU=None,EMU,All];
+                                                   OptionString=None,EMU,All }
+    { 26  ;   ;Copy Comments Blanket to Order;Boolean;
+                                                   InitValue=Yes;
+                                                   AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Bem. Rahmenauf. in Auftr. kop.;
+                                                              ENU=Copy Comments Blanket to Order] }
+    { 27  ;   ;Copy Comments Order to Invoice;Boolean;
+                                                   InitValue=Yes;
+                                                   AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Bem. Auftrag in Rechnung kop.;
+                                                              ENU=Copy Comments Order to Invoice] }
+    { 28  ;   ;Copy Comments Order to Shpt.;Boolean;
+                                                   InitValue=Yes;
+                                                   AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Bem. Auftrag in Lieferung kop.;
+                                                              ENU=Copy Comments Order to Shpt.] }
+    { 29  ;   ;Allow VAT Difference;Boolean       ;CaptionML=[DEU=MwSt.-Differenz zulassen;
+                                                              ENU=Allow VAT Difference] }
+    { 30  ;   ;Calc. Inv. Disc. per VAT ID;Boolean;CaptionML=[DEU=Rech.Rab. pro MwSt.Kennz. ber.;
+                                                              ENU=Calc. Inv. Disc. per VAT ID] }
+    { 31  ;   ;Logo Position on Documents;Option  ;CaptionML=[DEU=Logoposition auf Belegen;
+                                                              ENU=Logo Position on Documents];
+                                                   OptionCaptionML=[DEU=Kein Logo,Links,Mitte,Rechts;
+                                                                    ENU=No Logo,Left,Center,Right];
+                                                   OptionString=No Logo,Left,Center,Right }
+    { 32  ;   ;Check Prepmt. when Posting;Boolean ;CaptionML=[DEU=Vorauszahlung beim Buchen prÅfen;
+                                                              ENU=Check Prepmt. when Posting] }
+    { 35  ;   ;Default Posting Date;Option        ;CaptionML=[DEU=Standardbuchungsdatum;
+                                                              ENU=Default Posting Date];
+                                                   OptionCaptionML=[DEU=Arbeitsdatum,Kein Datum;
+                                                                    ENU=Work Date,No Date];
+                                                   OptionString=Work Date,No Date }
+    { 36  ;   ;Default Quantity to Ship;Option    ;AccessByPermission=TableData 110=R;
+                                                   CaptionML=[DEU=Zu liefernde Standardmenge;
+                                                              ENU=Default Quantity to Ship];
+                                                   OptionCaptionML=[DEU=Rest,Leer;
+                                                                    ENU=Remainder,Blank];
+                                                   OptionString=Remainder,Blank }
+    { 37  ;   ;Archive Quotes and Orders;Boolean  ;CaptionML=[DEU=Anfragen und AuftrÑge archivieren;
+                                                              ENU=Archive Quotes and Orders] }
+    { 38  ;   ;Post with Job Queue ;Boolean       ;CaptionML=[DEU=Mit Aufgabenwarteschlange buchen;
+                                                              ENU=Post with Job Queue] }
+    { 39  ;   ;Job Queue Category Code;Code10     ;TableRelation="Job Queue Category";
+                                                   CaptionML=[DEU=Aufgabenwarteschlange - Kategoriencode;
+                                                              ENU=Job Queue Category Code] }
+    { 40  ;   ;Job Queue Priority for Post;Integer;InitValue=1000;
+                                                   OnValidate=BEGIN
+                                                                IF "Job Queue Priority for Post" < 0 THEN
+                                                                  ERROR(Text001);
+                                                              END;
+
+                                                   CaptionML=[DEU=Aufgabenwarteschlange - PrioritÑt fÅr Buchung;
+                                                              ENU=Job Queue Priority for Post];
+                                                   MinValue=0 }
+    { 41  ;   ;Post & Print with Job Queue;Boolean;CaptionML=[DEU=Mit Aufgabenwarteschlange buchen & drucken;
+                                                              ENU=Post & Print with Job Queue] }
+    { 42  ;   ;Job Q. Prio. for Post & Print;Integer;
+                                                   InitValue=1000;
+                                                   OnValidate=BEGIN
+                                                                IF "Job Queue Priority for Post" < 0 THEN
+                                                                  ERROR(Text001);
+                                                              END;
+
+                                                   CaptionML=[DEU=Aufgabenwarteschlange fÅr Buchen und Drucken;
+                                                              ENU=Job Q. Prio. for Post & Print];
+                                                   MinValue=0 }
+    { 43  ;   ;Notify On Success   ;Boolean       ;CaptionML=[DEU=Bei Erfolg benachrichtigen;
+                                                              ENU=Notify On Success] }
+    { 44  ;   ;VAT Bus. Posting Gr. (Price);Code10;TableRelation="VAT Business Posting Group";
+                                                   CaptionML=[DEU=MwSt.-GeschÑftsbuch.-G.(Preis);
+                                                              ENU=VAT Bus. Posting Gr. (Price)] }
+    { 45  ;   ;Direct Debit Mandate Nos.;Code10   ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Lastschrift-Mandat-Nr.;
+                                                              ENU=Direct Debit Mandate Nos.] }
+    { 5800;   ;Posted Return Receipt Nos.;Code10  ;TableRelation="No. Series";
+                                                   AccessByPermission=TableData 6660=R;
+                                                   CaptionML=[DEU=Gebuchte RÅcksendungsnummern;
+                                                              ENU=Posted Return Receipt Nos.] }
+    { 5801;   ;Copy Cmts Ret.Ord. to Ret.Rcpt;Boolean;
+                                                   InitValue=Yes;
+                                                   AccessByPermission=TableData 6660=R;
+                                                   CaptionML=[DEU=Bem. Rekl. in RÅcksendung kop.;
+                                                              ENU=Copy Cmts Ret.Ord. to Ret.Rcpt] }
+    { 5802;   ;Copy Cmts Ret.Ord. to Cr. Memo;Boolean;
+                                                   InitValue=Yes;
+                                                   AccessByPermission=TableData 6660=R;
+                                                   CaptionML=[DEU=Bem. Rekl. in Gutschrift kop.;
+                                                              ENU=Copy Cmts Ret.Ord. to Cr. Memo] }
+    { 6600;   ;Return Order Nos.   ;Code10        ;TableRelation="No. Series";
+                                                   AccessByPermission=TableData 6660=R;
+                                                   CaptionML=[DEU=Reklamationsnummern;
+                                                              ENU=Return Order Nos.] }
+    { 6601;   ;Return Receipt on Credit Memo;Boolean;
+                                                   AccessByPermission=TableData 6660=R;
+                                                   CaptionML=[DEU=RÅcksendung bei Gutschrift;
+                                                              ENU=Return Receipt on Credit Memo] }
+    { 6602;   ;Exact Cost Reversing Mandatory;Boolean;
+                                                   CaptionML=[DEU=Einst.-Pr.-RÅckverfolg. notw.;
+                                                              ENU=Exact Cost Reversing Mandatory] }
+    { 7101;   ;Customer Group Dimension Code;Code20;
+                                                   TableRelation=Dimension;
+                                                   CaptionML=[DEU=Debitorengruppen-Dim.-Code;
+                                                              ENU=Customer Group Dimension Code] }
+    { 7102;   ;Salesperson Dimension Code;Code20  ;TableRelation=Dimension;
+                                                   CaptionML=[DEU=VerkÑufer-Dimensionscode;
+                                                              ENU=Salesperson Dimension Code] }
+    { 11500;  ;Block ship. when neg. invent.;Boolean;
+                                                   CaptionML=[DEU=Lief. bei neg. Lager sperren;
+                                                              ENU=Block ship. when neg. invent.] }
+    { 5005130;;Arch. Orders and Ret. Orders;Boolean;
+                                                   CaptionML=[DEU=Arch. Bestellungen und Reklamationen;
+                                                              ENU=Arch. Orders and Ret. Orders] }
+    { 5005132;;Archiving Sales Quote;Option       ;CaptionML=[DEU=Angebot archivieren;
+                                                              ENU=Archiving Sales Quote];
+                                                   OptionCaptionML=[DEU=Niemals,Auf Nachfrage,Immer;
+                                                                    ENU=Never,Question,Always];
+                                                   OptionString=Never,Question,Always }
+    { 5005133;;Archiving Blanket Sales Order;Boolean;
+                                                   CaptionML=[DEU=Rahmenauftrag archivieren;
+                                                              ENU=Archiving Blanket Sales Order] }
+    { 5005134;;Batch Archiving Sales Quote;Boolean;InitValue=No;
+                                                   CaptionML=[DEU=Angebote stapelarchivieren;
+                                                              ENU=Batch Archiving Sales Quote];
+                                                   Editable=No }
+    { 5058850;;VAT % LumpSum       ;Decimal       ;CaptionML=[DEU=MwSt % LumpSum;
+                                                              ENU=VAT % LumpSum];
+                                                   Description=PAM9.00 }
+    { 5058851;;LumpSum temp. Invoice Nos.;Code10  ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=LumpSum temp. Rechnungsnummern;
+                                                              ENU=LumpSum temp. Invoice Nos.];
+                                                   Description=PAM9.00 }
+    { 5058852;;Cost Transfer Code LumpSum;Code10  ;TableRelation="Cost Transfer Code";
+                                                   CaptionML=[DEU=Weiterbelastungscode LumpSum;
+                                                              ENU=Cost Transfer Code LumpSum];
+                                                   Description=PAM9.00 }
+    { 5059030;;OrderTimeCharterNos_fCod;Code10    ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Order Time Charter Nr. Serie;
+                                                              ENU=Order Time Charter No. Series];
+                                                   Description=TC1.00 }
+    { 5059031;;Currency Code Bunker Invoice;Code10;TableRelation=Currency;
+                                                   CaptionML=[DEU=Currency Code Bunker Invoice;
+                                                              ENU=Currency Code Bunker Invoice];
+                                                   Description=TC1.00 }
+    { 5059032;;Process Nos.        ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Proze· Nr.Serie;
+                                                              ENU=Process Nos.];
+                                                   Description=TC1.00 }
+    { 5059033;;ResourceBunkerDel_fCod;Code20      ;TableRelation=Resource.No. WHERE (Type=CONST(Machine));
+                                                   CaptionML=[DEU=Resource Bunker Delivery;
+                                                              ENU=Resource Bunker Delivery];
+                                                   Description=TC1.00 }
+    { 5059034;;ResourceBunkerReDel_fCod;Code20    ;TableRelation=Resource.No. WHERE (Type=CONST(Machine));
+                                                   CaptionML=[DEU=Resource Bunker Redelivery;
+                                                              ENU=Resource Bunker Redelivery];
+                                                   Description=TC1.00 }
+    { 5059035;;ResourceTimeCharter_fCod;Code20    ;TableRelation=Resource;
+                                                   CaptionML=[DEU=Resource Time Charter;
+                                                              ENU=Resource Time Charter];
+                                                   Description=TC1.00 }
+    { 5059036;;ResourceCommission_fCod;Code20     ;TableRelation=Resource.No. WHERE (Type=CONST(Machine));
+                                                   CaptionML=[DEU=Resource Commission;
+                                                              ENU=Resource Commission];
+                                                   Description=TC1.00 }
+    { 5059037;;DimensionVoyage_fCod;Code20        ;TableRelation=Dimension;
+                                                   CaptionML=[DEU=Dimension Voyage;
+                                                              ENU=Dimension Voyage];
+                                                   Description=TC1.00 }
+    { 5059038;;Default Language Code TC;Code10    ;TableRelation=Language;
+                                                   CaptionML=[DEU=Default Language Code Time Chartering;
+                                                              ENU=Default Language Code Time Chartering];
+                                                   Description=TC1.00 }
+    { 5059039;;Currency Code TC    ;Code10        ;CaptionML=[DEU=Currency Code Time Chartering;
+                                                              ENU=Currency Code Time Chartering];
+                                                   Description=TC1.00 }
+    { 5059040;;Show on Documents   ;Boolean       ;CaptionML=[DEU=Timcharter default set show on Documents;
+                                                              ENU=Timcharter default set show on Documents];
+                                                   Description=TC1.00 }
+    { 5059041;;No. of days show on stack;Integer  ;CaptionML=[DEU=No. of days show on timecharter stack;
+                                                              ENU=No. of days show on timecharter stack];
+                                                   MinValue=0;
+                                                   Description=TC1.00 }
+    { 5059042;;Bunker Unit of Measure;Code10      ;TableRelation="Unit of Measure";
+                                                   CaptionML=[DEU=Bunker Unit of Measure;
+                                                              ENU=Bunker Unit of Measure];
+                                                   Description=TC1.00 }
+    { 5059058;;Commission Posting Description;Text50;
+                                                   CaptionML=[DEU=Commission Buchungsbeschreibung;
+                                                              ENU=Commission Posting Description];
+                                                   Description=TC1.00 }
+  }
+  KEYS
+  {
+    {    ;Primary Key                             ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      Text001@1000 : TextConst 'DEU=Der Wert fÅr die AufgabenwarteschlangenprioritÑt muss null oder positiv sein.;ENU=Job Queue Priority must be zero or positive.';
+
+    PROCEDURE GetLegalStatement@11() : Text;
+    BEGIN
+      EXIT('');
+    END;
+
+    PROCEDURE JobQueueActive@1() : Boolean;
+    BEGIN
+      GET;
+      EXIT("Post with Job Queue" OR "Post & Print with Job Queue");
+    END;
+
+    BEGIN
+    {
+      PAM9.00 Implementation of Prodware adjust maritime
+        9.00.00 New fields added
+    }
+    END.
+  }
+}
+

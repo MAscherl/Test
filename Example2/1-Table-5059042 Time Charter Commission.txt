@@ -1,0 +1,250 @@
+OBJECT Table 5059042 Time Charter Commission
+{
+  OBJECT-PROPERTIES
+  {
+    Date=29.08.16;
+    Time=14:09:44;
+    Version List=PAM9.00,TC;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               CheckOrderStatus;
+               TESTFIELD(AccountNo_fCod);
+             END;
+
+    OnModify=BEGIN
+               CheckOrderStatus;
+             END;
+
+    OnDelete=BEGIN
+               CheckOrderStatus;
+               IF "accrual created" THEN BEGIN
+                 IF CONFIRM(Text001) THEN BEGIN
+                 TCCommission.COPY(Rec);
+                 TimeCharterMgt.ProcessTCCommission(TCCommission,1);
+                 END;
+               END;
+             END;
+
+    CaptionML=[DEU=Time Charter Commission;
+               ENU=Time Charter Commission];
+    LookupPageID=Page5059079;
+    DrillDownPageID=Page5059079;
+  }
+  FIELDS
+  {
+    { 1   ;   ;OrderNo_fCod        ;Code20        ;TableRelation="Time Charter Order";
+                                                   CaptionML=[DEU=Order No.;
+                                                              ENU=Order No.] }
+    { 2   ;   ;LineNo_fInt         ;Integer       ;CaptionML=[DEU=Line No.;
+                                                              ENU=Line No.] }
+    { 3   ;   ;AccountType_fOpt    ;Option        ;OnValidate=VAR
+                                                                TimeCharterOrder@1000000000 : Record 5059040;
+                                                              BEGIN
+                                                                CASE AccountType_fOpt OF
+                                                                  AccountType_fOpt::Customer:
+                                                                  BEGIN
+                                                                    IF AccountType_fOpt <> xRec.AccountType_fOpt THEN
+                                                                      VALIDATE(AccountNo_fCod, '');
+                                                                    "Commission Type" := "Commission Type"::"Invoice Reduction";
+                                                                    TimeCharterOrder.GET(OrderNo_fCod);
+                                                                    VALIDATE(AccountNo_fCod, TimeCharterOrder."Bill-to/Pay-to No.");
+                                                                  END;
+                                                                   AccountType_fOpt::Vendor:
+                                                                   BEGIN
+                                                                    IF AccountType_fOpt <> xRec.AccountType_fOpt THEN
+                                                                      VALIDATE(AccountNo_fCod, '');
+                                                                    "Commission Type" := "Commission Type"::"Direct Billing";
+                                                                   END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Account Type;
+                                                              ENU=Account Type];
+                                                   OptionCaptionML=[DEU=Debitor,Kreditor;
+                                                                    ENU=Customer,Vendor];
+                                                   OptionString=Customer,Vendor }
+    { 4   ;   ;AccountNo_fCod      ;Code20        ;TableRelation=IF (AccountType_fOpt=CONST(Customer)) Customer.No.
+                                                                 ELSE IF (AccountType_fOpt=CONST(Vendor)) Vendor.No.;
+                                                   OnValidate=BEGIN
+                                                                IF AccountNo_fCod <> '' THEN BEGIN
+                                                                  CASE AccountType_fOpt OF
+                                                                    AccountType_fOpt::Customer:
+                                                                      BEGIN
+                                                                        Customer_gRec.GET(AccountNo_fCod);
+                                                                        Text_fTxt := Customer_gRec.Name;
+                                                                        "Commission Type" := "Commission Type"::"Invoice Reduction";
+                                                                        Text2_fTxt := Customer_gRec."Name 2";
+                                                                      END;
+                                                                    AccountType_fOpt::Vendor:
+                                                                      BEGIN
+                                                                        Vendor_gRec.GET(AccountNo_fCod);
+                                                                        Text_fTxt := Vendor_gRec.Name;
+                                                                        Text2_fTxt := Vendor_gRec."Name 2";
+                                                                        "Commission Type" := "Commission Type"::"Direct Billing";
+                                                                      END;
+                                                                  END;
+                                                                END ELSE BEGIN
+                                                                  Text_fTxt := '';
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Account No.;
+                                                              ENU=Account No.] }
+    { 5   ;   ;Text_fTxt           ;Text50        ;CaptionML=[DEU=Text;
+                                                              ENU=Text] }
+    { 6   ;   ;CommissionPerc_fDec ;Decimal       ;CaptionML=[DEU=Commission %;
+                                                              ENU=Commission %] }
+    { 7   ;   ;Commission Type     ;Option        ;OnValidate=BEGIN
+                                                                {
+                                                                CASE "Commission Type" OF
+                                                                  "Commission Type"::"Invoice Reduction":
+                                                                    TESTFIELD(AccountType_fOpt,AccountType_fOpt::Customer);
+                                                                  "Commission Type"::"Direct Billing":
+                                                                    TESTFIELD(AccountType_fOpt,AccountType_fOpt::Vendor);
+                                                                END;
+                                                                }
+                                                              END;
+
+                                                   CaptionML=[DEU=Commission Type;
+                                                              ENU=Commision Type];
+                                                   OptionCaptionML=[DEU=Invoice Reduction,Direct Billing;
+                                                                    ENU=Invoice Reduction,Direct Billing];
+                                                   OptionString=Invoice Reduction,Direct Billing }
+    { 8   ;   ;Commission Character;Option        ;CaptionML=[DEU=Commision Character;
+                                                              ENU=Commision Character];
+                                                   OptionCaptionML=[DEU=Address,Brokerage;
+                                                                    ENU=Address,Brokerage];
+                                                   OptionString=Address,Brokerage }
+    { 9   ;   ;Carry over          ;Boolean       ;OnValidate=BEGIN
+                                                                IF "Carry over" AND (NOT xRec."Carry over") THEN BEGIN
+                                                                  Commision.SETRANGE(OrderNo_fCod,OrderNo_fCod);
+                                                                  Commision.SETFILTER(LineNo_fInt,'<>%1',LineNo_fInt);
+                                                                  Commision.SETRANGE("Carry over",TRUE);
+                                                                  IF Commision.FINDFIRST THEN BEGIN
+                                                                    Commision."Carry over" := FALSE;
+                                                                    Commision.MODIFY;
+                                                                  END;
+                                                                END;
+                                                                UpdateAddress;
+                                                              END;
+
+                                                   CaptionML=[DEU=Carry over;
+                                                              ENU=Carry over] }
+    { 10  ;   ;Due Date            ;Date          ;OnValidate=BEGIN
+                                                                "Manual Due Date" := "Due Date" <> 0D;
+                                                              END;
+
+                                                   CaptionML=[DEU=Due Date;
+                                                              ENU=Due Date] }
+    { 13  ;   ;Text2_fTxt          ;Text50        ;CaptionML=[DEU=Text 2;
+                                                              ENU=Text 2] }
+    { 18  ;   ;Delivery Date       ;Date          ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Time Charter Order"."Delivery Date" WHERE (Order No.=FIELD(OrderNo_fCod)));
+                                                   CaptionML=[DEU=Delivery Date;
+                                                              ENU=Delivery Date];
+                                                   Description=CRM Broker Statistic (Bookings..);
+                                                   Editable=No }
+    { 19  ;   ;Booking cancelled   ;Boolean       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Time Charter Order"."Booking cancelled" WHERE (Order No.=FIELD(OrderNo_fCod)));
+                                                   CaptionML=[DEU=Booking cancelled;
+                                                              ENU=Booking cancelled];
+                                                   Description=CRM Broker Statistic (Bookings..);
+                                                   Editable=No }
+    { 20  ;   ;accrual created     ;Boolean       ;CaptionML=[DEU=accrual created;
+                                                              ENU=accrual created] }
+    { 21  ;   ;Purch Doc No.       ;Code20        ;CaptionML=[DEU=Purch Doc No.;
+                                                              ENU=Purch Doc No.] }
+    { 22  ;   ;Manual Due Date     ;Boolean       ;CaptionML=[DEU=Manual Due Date;
+                                                              ENU=Manual Due Date] }
+  }
+  KEYS
+  {
+    {    ;OrderNo_fCod,LineNo_fInt                ;Clustered=Yes }
+    {    ;OrderNo_fCod,Commission Type            ;SumIndexFields=CommissionPerc_fDec }
+    {    ;OrderNo_fCod,Carry over                  }
+    {    ;AccountType_fOpt,AccountNo_fCod          }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      GLAccount_gRec@1119200000 : Record 15;
+      Customer_gRec@1119200001 : Record 18;
+      Vendor_gRec@1119200002 : Record 23;
+      Commision@1000000000 : Record 5059042;
+      TimeCharterMgt@1000000001 : Codeunit 5059040;
+      Text001@1000000002 : TextConst 'DEU=Do you want to resolve the provision?;ENU=Do you want to resolve the provision?';
+      TCCommission@1000000003 : Record 5059042;
+      TCOrder@1000000004 : Record 5059040;
+
+    PROCEDURE UpdateAddress@1119430001();
+    VAR
+      Cust@1119430000 : Record 18;
+      Vend@1119430003 : Record 23;
+      LO_RE_TCOrder@1119430001 : Record 5059040;
+      Updated@1119430002 : Boolean;
+    BEGIN
+
+      Updated := FALSE;
+      IF "Carry over" THEN BEGIN
+        CASE AccountType_fOpt OF
+          AccountType_fOpt::Customer :
+            IF Cust.GET(AccountNo_fCod) THEN
+              IF LO_RE_TCOrder.GET(OrderNo_fCod) THEN BEGIN
+                LO_RE_TCOrder."Bill-to Address" := Cust.Address;
+                LO_RE_TCOrder."Bill-to Address 2" := Cust."Address 2";
+                LO_RE_TCOrder."Bill-to City" := Cust.City;
+                LO_RE_TCOrder."Bill-to Contact" := Cust.Contact;
+                LO_RE_TCOrder."Bill-to Post Code" := Cust."Post Code";
+                LO_RE_TCOrder."Bill-to County" := Cust.County;
+                LO_RE_TCOrder."Bill-to Country/Region Code" := Cust."Country/Region Code";
+                LO_RE_TCOrder.MODIFY;
+                Updated := TRUE;
+              END;
+          AccountType_fOpt::Vendor :
+            IF Vend.GET(AccountNo_fCod) THEN
+              IF LO_RE_TCOrder.GET(OrderNo_fCod) THEN BEGIN
+                LO_RE_TCOrder."Bill-to Address" := Vend.Address;
+                LO_RE_TCOrder."Bill-to Address 2" := Vend."Address 2";
+                LO_RE_TCOrder."Bill-to City" := Vend.City;
+                LO_RE_TCOrder."Bill-to Contact" := Vend.Contact;
+                LO_RE_TCOrder."Bill-to Post Code" := Vend."Post Code";
+                LO_RE_TCOrder."Bill-to County" := Vend.County;
+                LO_RE_TCOrder."Bill-to Country/Region Code" := Vend."Country/Region Code";
+                LO_RE_TCOrder.MODIFY;
+                Updated := TRUE;
+              END;
+        END;
+      END;
+      IF NOT Updated THEN
+        IF LO_RE_TCOrder.GET(OrderNo_fCod) THEN BEGIN
+          IF NOT Cust.GET(LO_RE_TCOrder."Bill-to/Pay-to No.") THEN
+            CLEAR(Cust);
+          LO_RE_TCOrder."Bill-to Address" := Cust.Address;
+          LO_RE_TCOrder."Bill-to Address 2" := Cust."Address 2";
+          LO_RE_TCOrder."Bill-to City" := Cust.City;
+          LO_RE_TCOrder."Bill-to Contact" := Cust.Contact;
+          LO_RE_TCOrder."Bill-to Post Code" := Cust."Post Code";
+          LO_RE_TCOrder."Bill-to County" := Cust.County;
+          LO_RE_TCOrder."Bill-to Country/Region Code" := Cust."Country/Region Code";
+          LO_RE_TCOrder.MODIFY;
+        END;
+    END;
+
+    LOCAL PROCEDURE CheckOrderStatus@1000000000();
+    VAR
+      TimeCharterOrder@1000000000 : Record 5059040;
+    BEGIN
+      TimeCharterOrder.GET(OrderNo_fCod);
+      TimeCharterOrder.TESTFIELD(TimeCharterOrder.Status,TimeCharterOrder.Status::Open);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -1,0 +1,978 @@
+OBJECT Table 5059041 Time Charter Order Line
+{
+  OBJECT-PROPERTIES
+  {
+    Date=29.08.16;
+    Time=14:09:15;
+    Version List=PAM9.00,TC;
+  }
+  PROPERTIES
+  {
+    OnInsert=BEGIN
+               CheckOrderStatus;
+               InitLine;
+               InsertLine;
+             END;
+
+    OnModify=BEGIN
+               CheckOrderStatus;
+               "Last Change by" :=  USERID;
+               "Last Change at" := CURRENTDATETIME;
+               MODIFY;
+               CheckInvCategory;
+             END;
+
+    OnDelete=BEGIN
+               CheckOrderStatus;
+               IF ("Line No." <> 0) AND
+                  ("Attached to Line No."=0)
+               THEN
+                 //SetPeriodNo;
+
+               IF "Line No." <> 0 THEN BEGIN
+                 TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+                 TimeChartOrderLine.SETRANGE("Attached to Line No.","Line No.");
+                 TimeChartOrderLine.DELETEALL;
+               END;
+             END;
+
+    CaptionML=[DEU=Time Charter Order Line;
+               ENU=Time Charter Order Line];
+    LookupPageID=Page5059072;
+    DrillDownPageID=Page5059072;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Order No.           ;Code20        ;TableRelation="Time Charter Order";
+                                                   CaptionML=[DEU=Order No.;
+                                                              ENU=Order No.] }
+    { 2   ;   ;Line No.            ;Integer       ;CaptionML=[DEU=Line No.;
+                                                              ENU=Line No.] }
+    { 3   ;   ;Invoice Category    ;Code20        ;TableRelation="Time Charter Invoice Category";
+                                                   OnValidate=VAR
+                                                                LO_RE_TimeInvoiceCategory@1000000000 : Record 5059043;
+                                                              BEGIN
+                                                                InvoiceCategoryValidate(TRUE);
+                                                              END;
+
+                                                   CaptionML=[DEU=Invoice Category;
+                                                              ENU=Invoice Category] }
+    { 4   ;   ;Invoice Category Name;Text50       ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Time Charter Invoice Category".Name WHERE (Code=FIELD(Invoice Category)));
+                                                   CaptionML=[DEU=Invoice Category Name;
+                                                              ENU=Invoice Category Name];
+                                                   Editable=No }
+    { 16  ;   ;Period No.          ;Integer       ;CaptionML=[DEU=Period No.;
+                                                              ENU=Period No.] }
+    { 17  ;   ;Invoice Category Relations;Boolean ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("Time Charter Inv. Cat. Rel." WHERE (Code=FIELD(Invoice Category)));
+                                                   CaptionML=[DEU=Invoice Category Relations;
+                                                              ENU=Invoice Category Relations];
+                                                   Editable=No }
+    { 18  ;   ;Prolonged Delivery  ;Boolean       ;OnValidate=BEGIN
+                                                                IF xRec."Prolonged Delivery" AND (NOT "Prolonged Delivery") THEN BEGIN
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Prolonged Period;
+                                                              ENU=Prolonged Period] }
+    { 50  ;   ;Created by          ;Code50        ;CaptionML=[DEU=Created by;
+                                                              ENU=Created by];
+                                                   Editable=No }
+    { 51  ;   ;Last Change by      ;Code50        ;CaptionML=[DEU=Last Change by;
+                                                              ENU=Last Change by];
+                                                   Editable=No }
+    { 80  ;   ;Attached to Line No.;Integer       ;TableRelation="Time Charter Order Line"."Line No." WHERE (Order No.=FIELD(Order No.));
+                                                   CaptionML=[DEU=Attached to Line No.;
+                                                              ENU=Attached to Line No.];
+                                                   Editable=No }
+    { 110 ;   ;Created at          ;DateTime      ;CaptionML=[DEU=Created at;
+                                                              ENU=Created at];
+                                                   Editable=No }
+    { 111 ;   ;Last Change at      ;DateTime      ;CaptionML=[DEU=Last Change at;
+                                                              ENU=Last Change at];
+                                                   Editable=No }
+    { 114 ;   ;Amount              ;Decimal       ;OnValidate=BEGIN
+                                                                IF Quantity <> 0 THEN BEGIN
+                                                                  "Price per Time" := Amount / Quantity;
+                                                                END ELSE BEGIN
+                                                                  Amount := 0;
+                                                                  "Price per Time" := 0;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Amount;
+                                                              ENU=Amount] }
+    { 115 ;   ;Description         ;Text50        ;CaptionML=[DEU=Description;
+                                                              ENU=Description] }
+    { 200 ;   ;Comment             ;Boolean       ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("Sales Comment Line" WHERE (Document Type=CONST(Time Charter Order),
+                                                                                                 No.=FIELD(Order No.),
+                                                                                                 Document Line No.=FIELD(Line No.)));
+                                                   CaptionML=[DEU=Comment;
+                                                              ENU=Comment];
+                                                   Editable=No }
+    { 201 ;   ;Fixed / Actual      ;Option        ;CaptionML=[DEU=Qty. Fixed / Actual;
+                                                              ENU=Qty. Fixed / Actual];
+                                                   OptionCaptionML=[DEU=" ,Fixed,Actual";
+                                                                    ENU=" ,Fixed,Actual"];
+                                                   OptionString=[ ,Fixed,Actual] }
+    { 202 ;   ;Quantity            ;Decimal       ;OnValidate=BEGIN
+                                                                IF CurrFieldNo = FIELDNO(Quantity) THEN
+                                                                  CalcPeriodEnd;
+                                                                CalcAmount;
+                                                              END;
+
+                                                   CaptionML=[DEU=Quantity;
+                                                              ENU=Quantity];
+                                                   CaptionClass=GetQtyCaption }
+    { 203 ;   ;Currency Code       ;Code10        ;OnValidate=VAR
+                                                                LO_RE_Currency@1119430000 : Record 5058802;
+                                                                LO_RE_GLSetup@1119430001 : Record 98;
+                                                                LO_RE_OrderChartering@1119430002 : Record 5059040;
+                                                              BEGIN
+                                                                LO_RE_GLSetup.GET;
+                                                                IF NOT ("Currency Code"  IN ['',LO_RE_GLSetup."LCY Code"]) THEN BEGIN
+                                                                  LO_RE_Currency.GET(LO_RE_GLSetup."LCY Code","Currency Code");
+                                                                END;
+
+                                                                LO_RE_OrderChartering.GET("Order No.");
+                                                                IF LO_RE_OrderChartering."Currency Code" = '' THEN BEGIN
+                                                                  LO_RE_OrderChartering."Currency Code" := "Currency Code";
+                                                                  LO_RE_OrderChartering.MODIFY(TRUE);
+                                                                END;
+                                                                IF LO_RE_OrderChartering."Currency Code" <> "Currency Code" THEN BEGIN
+                                                                  ERROR(Text001_gCtx);
+                                                                END;
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              LookUpCurrencyCode(TRUE);
+                                                            END;
+
+                                                   CaptionML=[DEU=Currency;
+                                                              ENU=Currency] }
+    { 206 ;   ;Invoice             ;Boolean       ;CaptionML=[DEU=Invoice;
+                                                              ENU=Invoice] }
+    { 210 ;Yes;Comment Picture     ;BLOB          ;CaptionML=[DEU=Comment Picture;
+                                                              ENU=Comment Picture];
+                                                   SubType=Bitmap }
+    { 230 ;   ;CVE Calculation     ;Option        ;OnValidate=BEGIN
+                                                                CalcAmount;
+                                                              END;
+
+                                                   CaptionML=[DEU=CVE Calculation;
+                                                              ENU=CVE Calculation];
+                                                   OptionCaptionML=[DEU=30 days,365 days;
+                                                                    ENU=30 days,365 days];
+                                                   OptionString=30 days,365 days }
+    { 231 ;   ;Price per Time      ;Decimal       ;OnValidate=BEGIN
+                                                                CalcAmount;
+                                                              END;
+
+                                                   CaptionML=[DEU=Price per Time;
+                                                              ENU=Price per Time];
+                                                   CaptionClass=LO_FU_GetCaptionPricePer }
+    { 232 ;   ;(A) Period from     ;Date          ;OnValidate=BEGIN
+                                                                LO_FU_CalcQuantity;
+                                                                IF CurrFieldNo = FIELDNO("(A) Period from") THEN
+                                                                  UpdateLines(FIELDNO("(A) Period from"));
+                                                              END;
+
+                                                   CaptionML=[DEU=(A) Period from;
+                                                              ENU=(A) Period from];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 233 ;   ;(F) Period until    ;Date          ;OnValidate=BEGIN
+                                                                LO_FU_CalcQuantity;
+                                                                IF CurrFieldNo = FIELDNO("(F) Period until") THEN
+                                                                  UpdateLines(FIELDNO("(F) Period until"));
+                                                                IF "(A) Period end at" = 0D THEN
+                                                                  VALIDATE("(A) Period end at", "(F) Period until");
+                                                              END;
+
+                                                   CaptionML=[DEU=(F) Period until;
+                                                              ENU=(F) Period until];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 234 ;   ;(A) Period from Time (UTC);Time    ;OnValidate=BEGIN
+                                                                LO_FU_CalcQuantity;
+                                                                IF CurrFieldNo = FIELDNO("(A) Period from Time (UTC)") THEN
+                                                                  UpdateLines(FIELDNO("(A) Period from Time (UTC)"));
+                                                              END;
+
+                                                   CaptionML=[DEU=(A) Period from Time (UTC);
+                                                              ENU=(A) Period from Time (UTC)];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 235 ;   ;(F) Period until Time (UTC);Time   ;OnValidate=BEGIN
+                                                                IF CurrFieldNo = FIELDNO("(F) Period until Time (UTC)") THEN
+                                                                  UpdateLines(FIELDNO("(F) Period until Time (UTC)"));
+
+                                                                IF "(A) Period end at Time (UTC)" = 0T THEN
+                                                                  VALIDATE("(A) Period end at Time (UTC)", "(F) Period until Time (UTC)");
+
+                                                                LO_FU_CalcQuantity;
+                                                              END;
+
+                                                   CaptionML=[DEU=(F) Period until Time (UTC);
+                                                              ENU=(F) Period until Time (UTC)];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 236 ;   ;(A) Period end at   ;Date          ;OnValidate=VAR
+                                                                LO_RE_CashFlow@1000000000 : Record 5059050;
+                                                              BEGIN
+                                                                IF "(A) Period end at" < "(A) Period from" THEN
+                                                                  ERROR(Text002,FIELDCAPTION("(A) Period from"), FIELDCAPTION("(A) Period end at"));
+
+                                                                LO_RE_CashFlow.RESET;
+                                                                LO_RE_CashFlow.SETRANGE("Order No.","Order No.");
+                                                                LO_RE_CashFlow.SETRANGE("Period No","Period No.");
+                                                                LO_RE_CashFlow.SETFILTER("Document No.",'<>%1','');
+                                                                IF LO_RE_CashFlow.FINDLAST THEN BEGIN
+                                                                  IF "(A) Period end at" < LO_RE_CashFlow."Date until" THEN
+                                                                    ERROR(TE_009,"Period No.",LO_RE_CashFlow."Date until");
+                                                                IF "(A) Period end at" < LO_RE_CashFlow."Date until" THEN
+                                                                  IF ("(A) Period end at Time (UTC)" > LO_RE_CashFlow."Time until") THEN
+                                                                    ERROR(TE_009,"Period No.", LO_RE_CashFlow."Time until");
+                                                                END;
+
+                                                                LO_FU_CalcQuantity;
+                                                                IF CurrFieldNo = FIELDNO("(A) Period end at") THEN
+                                                                  UpdateLines(FIELDNO("(A) Period end at"));
+                                                              END;
+
+                                                   CaptionML=[DEU=(A) Period end at;
+                                                              ENU=(A) Period end at];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 237 ;   ;(A) Period end at Time (UTC);Time  ;OnValidate=BEGIN
+                                                                IF CurrFieldNo = FIELDNO("(A) Period end at Time (UTC)") THEN
+                                                                  UpdateLines(FIELDNO("(A) Period end at Time (UTC)"));
+                                                                LO_FU_CalcQuantity;
+                                                              END;
+
+                                                   CaptionML=[DEU=(A) Period end at Time (UTC);
+                                                              ENU=(A) Period end at Time (UTC)];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 238 ;   ;(F) Period from     ;Date          ;OnValidate=BEGIN
+                                                                LO_FU_CalcQuantity;
+                                                                IF CurrFieldNo = FIELDNO("(F) Period from") THEN
+                                                                  UpdateLines(FIELDNO("(F) Period from"));
+                                                              END;
+
+                                                   CaptionML=[DEU=(F) Period from;
+                                                              ENU=(F) Period from];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 239 ;   ;(F) Period from Time (UTC);Time    ;OnValidate=BEGIN
+                                                                LO_FU_CalcQuantity;
+                                                                IF CurrFieldNo = FIELDNO("(F) Period from Time (UTC)") THEN
+                                                                  UpdateLines(FIELDNO("(F) Period from Time (UTC)"));
+                                                              END;
+
+                                                   CaptionML=[DEU=(F) Period from Time (UTC);
+                                                              ENU=(F) Period from Time (UTC)];
+                                                   NotBlank=Yes;
+                                                   Description=A = actual F= Fixture }
+    { 240 ;   ;Price per           ;Option        ;CaptionML=[DEU=Price per;
+                                                              ENU=Price per];
+                                                   OptionCaptionML=[DEU=Day,Month;
+                                                                    ENU=Day,Month];
+                                                   OptionString=Day,Month;
+                                                   Editable=No }
+    { 241 ;   ;Invoiced            ;Boolean       ;CaptionML=[DEU=Invoiced;
+                                                              ENU=Invoiced] }
+    { 242 ;   ;2nd Currency        ;Boolean       ;OnValidate=BEGIN
+                                                                IF NOT "2nd Currency" THEN BEGIN
+                                                                  "Currency Code 2" := '';
+                                                                  "Price per Time 2" := 0;
+                                                                  "Amount 2" := 0;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=2nd Currency;
+                                                              ENU=2nd Currency] }
+    { 243 ;   ;Price per Time 2    ;Decimal       ;OnValidate=BEGIN
+                                                                CalcAmount2;
+                                                              END;
+
+                                                   CaptionML=[DEU=Price per Time 2nd Curr;
+                                                              ENU=Price per Time 2nd Curr] }
+    { 244 ;   ;Currency Code 2     ;Code10        ;OnValidate=VAR
+                                                                LO_RE_Currency@1119430000 : Record 5058802;
+                                                                LO_RE_GLSetup@1119430001 : Record 98;
+                                                                LO_RE_OrderChartering@1119430002 : Record 5059040;
+                                                              BEGIN
+                                                                IF "Currency Code 2" = "Currency Code" THEN
+                                                                  ERROR(TE_010,"Currency Code");
+
+                                                                "2nd Currency" := "Currency Code 2" <>'';
+
+                                                                LO_RE_GLSetup.GET;
+                                                                IF NOT ("Currency Code 2"  IN ['',LO_RE_GLSetup."LCY Code"]) THEN BEGIN
+                                                                  LO_RE_Currency.GET("Currency Code 2");
+                                                                  //LO_RE_Currency.TESTFIELD("List Invoice Tool",TRUE); //TC
+                                                                  //LO_RE_Currency.TESTFIELD("Buying/Selling Rate",LO_RE_Currency."Buying/Selling Rate"::"0"); //TC
+                                                                END;
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              LookUpCurrencyCode2(TRUE);
+                                                            END;
+
+                                                   CaptionML=[DEU=Currency 2nd;
+                                                              ENU=Currency 2nd] }
+    { 245 ;   ;Amount 2            ;Decimal       ;OnValidate=BEGIN
+                                                                IF Quantity <> 0 THEN BEGIN
+                                                                  "Price per Time 2" := "Amount 2" / Quantity;
+                                                                END ELSE BEGIN
+                                                                  "Amount 2":= 0;
+                                                                  "Price per Time 2" := 0;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Amount 2nd Curr;
+                                                              ENU=Amount 2nd Curr] }
+    { 247 ;   ;xInvoiced until     ;Date          ;CaptionML=[DEU=xInvoiced until;
+                                                              ENU=xInvoiced until] }
+    { 248 ;   ;xInvoiced until Time;Time          ;CaptionML=[DEU=xInvoiced until Time;
+                                                              ENU=xInvoiced until Time] }
+  }
+  KEYS
+  {
+    {    ;Order No.,Line No.                      ;SumIndexFields=Amount;
+                                                   Clustered=Yes }
+    {    ;(A) Period from,Invoice Category         }
+    {    ;Order No.,Period No.                     }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      SalesSetup_gRec@1119200001 : Record 311;
+      PortChartering_gRec@1119430000 : Record 5059054;
+      OrderChatering_gRec@1119200002 : Record 5059040;
+      OCExists_gCtx@1119200003 : TextConst 'DEU=The Order Chartering %2 does already exist.;ENU=The Order Chartering %2 does already exist.';
+      TimeChartOrderLine@1119430012 : Record 5059041;
+      Cust@1119430008 : Record 18;
+      Vessel@1119430007 : Record 5059055;
+      PaymentMethod@1119430005 : Record 3;
+      Commission_gRec@1119430004 : Integer;
+      Industry_gRec@1119430003 : Integer;
+      ShippingArea@1119430009 : Integer;
+      DimMgt_gCdu@1119200004 : Codeunit 408;
+      NoSeriesMgt_gCdu@1119430001 : Codeunit 396;
+      Text001_gCtx@1119430010 : TextConst 'DEU=You have to use the same currency as in the order.;ENU=You have to use the same currency as in the order.';
+      Text002_gCtx@1119430011 : TextConst 'DEU=You have to enter %1!;ENU=You have to enter %1!';
+      TE_003@1000000000 : TextConst 'DEU=Rate per %1;ENU=Rate per %1';
+      TE_004@1000000001 : TextConst 'DEU=%1 must not bigger then %2.;ENU=%1 must not bigger then %2.';
+      TE_005@1000000002 : TextConst 'DEU=s;ENU=s';
+      TE_006@1119430014 : TextConst 'DEU=You may not change %1 to %2!;ENU=You may not change %1 to %2!';
+      TE_007@1119430015 : TextConst 'DEU="You can create a new period, if period %2 have ""%2"" = Yes!";ENU="You can create a new period, if period %2 have ""%2"" = Yes!"';
+      TE_008@1119430016 : TextConst 'DEU=%1 must not be smaller then %2 of the last period.;ENU=%1 must not be smaller then %2 of the last period.';
+      TE_009@1119430017 : TextConst 'DEU=Period %1 already invoiced until %2.;ENU=Period %1 already invoiced until %2.';
+      TE_010@1119430018 : TextConst 'DEU=The second currency can not be equal to the first %1.;ENU=The second currency can not be equal to the first %1.';
+      Text002@1119430002 : TextConst 'DEU=%1 is later than %2.;ENU=%1 is later than %2.';
+      TE_011@1000000003 : TextConst 'DEU=Invoice Category %1 already on period %2.;ENU=Invoice Category %1 already on period %2.';
+      TE_012@1000000004 : TextConst 'DEU=Do you want to update the Cash Flow Lines?;ENU=Do you want to update the Cash Flow Lines?';
+
+    PROCEDURE CalcSeaFreight_lFnc@1119200000();
+    BEGIN
+      // only Voyage Charter
+    END;
+
+    PROCEDURE CalcNetFreight@1000000000();
+    VAR
+      lDecProcent@1000000001 : Decimal;
+    BEGIN
+      // only Voyage Charter
+    END;
+
+    PROCEDURE GetQtyCaption@1119430001() : Text[250];
+    BEGIN
+      EXIT(FORMAT("Price per") + TE_005);
+    END;
+
+    PROCEDURE ShowLineComments@1119430000();
+    VAR
+      LO_RE_SalesDocLineComments@1119430000 : Record 44;
+      LO_FO_SalesDocLineComments@1000000000 : Page 67;
+    BEGIN
+      LO_RE_SalesDocLineComments.SETRANGE("Document Type",LO_RE_SalesDocLineComments."Document Type"::"Time Charter Order");
+      LO_RE_SalesDocLineComments.SETRANGE("No.","Order No.");
+      LO_RE_SalesDocLineComments.SETRANGE("Document Line No.","Line No.");
+      LO_FO_SalesDocLineComments.SETTABLEVIEW(LO_RE_SalesDocLineComments);
+      LO_FO_SalesDocLineComments.RUNMODAL;
+    END;
+
+    PROCEDURE LookUpCurrencyCode@1119430002(Editable@1119430003 : Boolean) : Boolean;
+    VAR
+      LO_RE_Currency@1119430002 : Record 5058802;
+      LO_RE_TempCurrency@1119430001 : TEMPORARY Record 5058802;
+      LO_RE_GLSetup@1119430000 : Record 98;
+    BEGIN
+      //LO_RE_Currency.SETRANGE("List Invoice Tool",TRUE);                                           //TC
+      //LO_RE_Currency.SETRANGE("Buying/Selling Rate",LO_RE_Currency."Buying/Selling Rate"::"0");    //TC
+      IF LO_RE_Currency.FINDSET THEN REPEAT
+        LO_RE_TempCurrency := LO_RE_Currency;
+        LO_RE_TempCurrency.INSERT;
+      UNTIL LO_RE_Currency.NEXT = 0;
+      LO_RE_GLSetup.GET;
+      IF LO_RE_GLSetup."LCY Code" <> '' THEN BEGIN
+        LO_RE_TempCurrency.INIT;
+        LO_RE_TempCurrency.Code := LO_RE_GLSetup."LCY Code";
+        LO_RE_TempCurrency.Description := LO_RE_GLSetup."LCY Code";
+        IF LO_RE_TempCurrency.INSERT THEN;
+      END;
+      IF PAGE.RUNMODAL(0,LO_RE_TempCurrency) = ACTION::LookupOK THEN
+        IF Editable THEN BEGIN
+          VALIDATE("Currency Code",LO_RE_TempCurrency.Code);
+          EXIT(TRUE);
+        END;
+    END;
+
+    LOCAL PROCEDURE LO_FU_GetCaptionPricePer@1000000001() : Text[100];
+    BEGIN
+      EXIT(STRSUBSTNO(TE_003, "Price per"));
+    END;
+
+    LOCAL PROCEDURE LO_FU_CalcQuantity@1000000002();
+    BEGIN
+      IF "(A) Period from" > "(A) Period end at" THEN BEGIN
+        VALIDATE(Quantity, 0);
+        EXIT;
+      END;
+
+      IF ("(A) Period from" <> 0D) AND ("(A) Period end at" <>0D) THEN BEGIN
+        Quantity := "(A) Period end at" - "(A) Period from";
+      END ELSE BEGIN
+        Quantity := 0;
+      END;
+
+      IF ("(A) Period end at Time (UTC)" = 0T) AND ("(A) Period from Time (UTC)" <> 0T) THEN BEGIN
+        EVALUATE("(A) Period end at Time (UTC)", '00:00:00');
+      END;
+
+      IF ("(A) Period end at Time (UTC)" <> 0T) AND ("(A) Period from Time (UTC)" = 0T) THEN BEGIN
+        EVALUATE("(A) Period from Time (UTC)", '00:00:00');
+      END;
+
+      IF ("(A) Period end at Time (UTC)" <> 0T) AND ("(A) Period from Time (UTC)" <> 0T) THEN BEGIN
+        Quantity := Quantity + (("(A) Period end at Time (UTC)" - "(A) Period from Time (UTC)") / 86400000);
+      END ELSE BEGIN
+        Quantity := Quantity + 1;
+      END;
+
+      IF "Price per" = "Price per"::Month THEN
+        Quantity := ROUND(Quantity / 30,0.00001);
+
+      VALIDATE(Quantity);
+    END;
+
+    PROCEDURE InsertLine@1119430003();
+    VAR
+      LO_RE_TimeChartOrderLine@1119430000 : Record 5059041;
+      TimeInvCatRelation@1119430006 : Record 5059047;
+      TimeInvCategory@1119430008 : Record 5059043;
+      NewLineNo@1119430007 : Integer;
+    BEGIN
+      TESTFIELD("Invoice Category");
+      TimeInvCategory.GET("Invoice Category");
+      TimeInvCategory.CALCFIELDS("Relation Category",Relations);
+      IF NOT TimeInvCategory.Relations THEN
+        EXIT;
+
+      "Attached to Line No." := 0;
+
+      TimeInvCatRelation.SETRANGE(Code,"Invoice Category");
+      NewLineNo := "Line No.";
+      IF TimeInvCatRelation.FINDSET THEN REPEAT
+        TimeInvCategory.GET(TimeInvCatRelation."Category Code");
+        IF NOT TimeInvCategory.Bunker THEN BEGIN
+          NewLineNo := NewLineNo + 10000;
+          LO_RE_TimeChartOrderLine.INIT;
+          LO_RE_TimeChartOrderLine."Order No." := "Order No.";
+          LO_RE_TimeChartOrderLine."Line No." := NewLineNo;
+          LO_RE_TimeChartOrderLine.VALIDATE("Invoice Category",TimeInvCatRelation."Category Code");
+          LO_RE_TimeChartOrderLine."Attached to Line No." := "Line No.";
+          LO_RE_TimeChartOrderLine."Period No." := "Period No.";
+          LO_RE_TimeChartOrderLine."Prolonged Delivery" := "Prolonged Delivery";
+          LO_RE_TimeChartOrderLine.InitLine;
+          LO_RE_TimeChartOrderLine.INSERT;
+        END;
+      UNTIL TimeInvCatRelation.NEXT = 0;
+    END;
+
+    PROCEDURE InitLine@1119430004();
+    VAR
+      OrderChartering@1119430000 : Record 5059040;
+      LO_RE_TimeChartOrderLine@1119430001 : Record 5059041;
+      TimeInvCategory@1119430004 : Record 5059043;
+      NewDate@1119430002 : Date;
+      NewTime@1119430003 : Time;
+      DateTimeFrom@1000000000 : DateTime;
+      DateTimeTo@1000000001 : DateTime;
+      SalesResPriceCalcMgt@1000000003 : Codeunit 5058815;
+    BEGIN
+      IF "Period No." = 0 THEN
+        FIELDERROR("Period No.");
+      "Created by":= USERID;
+      "Created at":= CURRENTDATETIME;
+
+      OrderChartering.GET("Order No.");
+      IF "Currency Code" = '' THEN BEGIN
+        "Currency Code" := OrderChartering."Currency Code";
+      END;
+
+
+      "CVE Calculation" := OrderChartering."CVE Calculation";
+
+      TimeInvCategory.GET("Invoice Category");
+      TimeInvCategory.CALCFIELDS("Relation Category",Relations);
+      IF TimeInvCategory.Relations THEN BEGIN
+        LO_RE_TimeChartOrderLine.RESET;
+        LO_RE_TimeChartOrderLine.SETCURRENTKEY("Order No.","Period No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+        IF LO_RE_TimeChartOrderLine.FINDLAST THEN BEGIN
+          "Period No." := LO_RE_TimeChartOrderLine."Period No." + 1;
+          "Line No." := LO_RE_TimeChartOrderLine."Line No." + 10000;
+        END ELSE
+          "Period No." := 1;
+      END ELSE BEGIN
+        LO_RE_TimeChartOrderLine.RESET;
+        LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Invoice Category","Invoice Category");
+        LO_RE_TimeChartOrderLine.SETFILTER("Line No.",'<>%1',"Line No.");
+        IF LO_RE_TimeChartOrderLine.FINDLAST THEN
+          "Period No." := LO_RE_TimeChartOrderLine."Period No." + 1;
+      END;
+
+      LO_RE_TimeChartOrderLine.RESET;
+      LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+      LO_RE_TimeChartOrderLine.SETRANGE("Period No.","Period No.");
+      IF LO_RE_TimeChartOrderLine.FINDFIRST THEN BEGIN
+        "(A) Period from" := LO_RE_TimeChartOrderLine."(A) Period from";
+        "(F) Period until" := LO_RE_TimeChartOrderLine."(F) Period until";
+        "(A) Period from Time (UTC)" := LO_RE_TimeChartOrderLine."(A) Period from Time (UTC)";
+        "(F) Period until Time (UTC)" := LO_RE_TimeChartOrderLine."(F) Period until Time (UTC)";
+        "(A) Period end at" := LO_RE_TimeChartOrderLine."(A) Period end at";
+        "(F) Period from" := LO_RE_TimeChartOrderLine."(F) Period from";
+        "(F) Period from Time (UTC)" := LO_RE_TimeChartOrderLine."(F) Period from Time (UTC)";
+
+        VALIDATE("(A) Period end at Time (UTC)",LO_RE_TimeChartOrderLine."(A) Period end at Time (UTC)");
+      END ELSE
+        IF "Period No." = 1 THEN BEGIN
+          OrderChartering.GET("Order No.");
+
+          OrderChartering.TESTFIELD("Plan Redelivery Time");
+          OrderChartering.TESTFIELD("Plan Delivery Time");
+          OrderChartering.TESTFIELD("Plan Delivery Date from");
+          OrderChartering.TESTFIELD("Plan Redelivery Date from");
+
+          IF "(A) Period from" = 0D THEN
+            "(A) Period from" := OrderChartering."Plan Delivery Date from";
+
+          IF "(A) Period from Time (UTC)" = 0T THEN
+            "(A) Period from Time (UTC)" := OrderChartering."Plan Delivery Time";
+
+
+          IF "(F) Period until" = 0D THEN
+            CASE OrderChartering."Duration Calc Reference" OF
+              OrderChartering."Duration Calc Reference"::from:
+                "(F) Period until" := OrderChartering."Plan Redelivery Date from";
+                OrderChartering."Duration Calc Reference"::mid: BEGIN
+                OrderChartering.TESTFIELD("Plan Redelivery Date to");
+                DateTimeFrom := CREATEDATETIME(OrderChartering."Plan Redelivery Date from",OrderChartering."Plan Delivery Time");
+                DateTimeTo := CREATEDATETIME(OrderChartering."Plan Redelivery Date to",OrderChartering."Plan Delivery Time");
+                "(F) Period until" := DT2DATE((DateTimeFrom + (DateTimeTo-DateTimeFrom)/2));
+                //"(F) Period until" := OrderChartering."Plan Redelivery Date to" -
+                //                 (OrderChartering."Plan Redelivery Date to"
+                //                - OrderChartering."Plan Redelivery Date from");
+              END;
+              OrderChartering."Duration Calc Reference"::"until":
+                "(F) Period until" := OrderChartering."Plan Redelivery Date to";
+            END;
+          IF "(F) Period until Time (UTC)" = 0T THEN
+            "(F) Period until Time (UTC)" := OrderChartering."Plan Redelivery Time";
+          IF "(A) Period end at" = 0D THEN
+            "(A) Period end at" := OrderChartering."Plan Redelivery Date to";
+
+            CASE OrderChartering."Duration Calc Reference" OF
+              OrderChartering."Duration Calc Reference"::from:
+                "(A) Period end at" := OrderChartering."Plan Redelivery Date from";
+              OrderChartering."Duration Calc Reference"::mid: BEGIN
+                OrderChartering.TESTFIELD("Plan Redelivery Date to");
+                DateTimeFrom := CREATEDATETIME(OrderChartering."Plan Redelivery Date from",OrderChartering."Plan Delivery Time");
+                DateTimeTo := CREATEDATETIME(OrderChartering."Plan Redelivery Date to",OrderChartering."Plan Delivery Time");
+               "(A) Period end at" := DT2DATE((DateTimeFrom + (DateTimeTo-DateTimeFrom)/2));
+               //"(A) Period end at" := OrderChartering."Plan Redelivery Date to" -
+               //                   (OrderChartering."Plan Redelivery Date to"
+               //                   -OrderChartering."Plan Redelivery Date from");
+              END;
+              OrderChartering."Duration Calc Reference"::"until":
+                "(A) Period end at" := OrderChartering."Plan Redelivery Date to";
+            END;
+            IF "(A) Period end at Time (UTC)" = 0T THEN
+           "(A) Period end at Time (UTC)" := OrderChartering."Plan Redelivery Time";
+          VALIDATE("(A) Period end at Time (UTC)");
+          "(F) Period from" := OrderChartering."Plan Delivery Date from";
+          "(F) Period from Time (UTC)" := OrderChartering."Plan Delivery Time";
+
+        END ELSE BEGIN
+          LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+          LO_RE_TimeChartOrderLine.SETRANGE("Period No.","Period No." - 1);
+          IF LO_RE_TimeChartOrderLine.FINDFIRST THEN BEGIN
+            NewDate := LO_RE_TimeChartOrderLine."(A) Period end at";
+            NewTime := LO_RE_TimeChartOrderLine."(A) Period end at Time (UTC)";
+            "(A) Period from" := LO_RE_TimeChartOrderLine."(A) Period end at";
+            "(A) Period from Time (UTC)" := LO_RE_TimeChartOrderLine."(A) Period end at Time (UTC)";
+            "(F) Period until" := LO_RE_TimeChartOrderLine."(F) Period until";
+            "(F) Period until Time (UTC)" := LO_RE_TimeChartOrderLine."(F) Period until Time (UTC)";
+            "(A) Period end at" := LO_RE_TimeChartOrderLine."(F) Period until";
+            "(F) Period from" := "(A) Period from";
+            "(F) Period from Time (UTC)" := "(A) Period from Time (UTC)";
+
+            VALIDATE("(A) Period end at Time (UTC)",LO_RE_TimeChartOrderLine."(F) Period until Time (UTC)");
+          END;
+        END;
+
+      SalesResPriceCalcMgt.FindTCOrderLineResPrice(OrderChartering,Rec); //P0107-MWA-15032016
+    END;
+
+    PROCEDURE InvoiceCategoryValidate@1119430006(Editable@1119430001 : Boolean) : Boolean;
+    VAR
+      TimeInvCategory@1119430000 : Record 5059043;
+    BEGIN
+      CALCFIELDS("Invoice Category Relations");
+      IF LineExist THEN BEGIN
+        xRec.CALCFIELDS("Invoice Category Relations");
+        IF xRec."Invoice Category Relations" <> "Invoice Category Relations" THEN
+          ERROR(TE_006,xRec."Invoice Category","Invoice Category");
+      END ELSE
+        IF "Invoice Category Relations" THEN BEGIN
+          TimeChartOrderLine.RESET;
+          TimeChartOrderLine.SETCURRENTKEY("Order No.","Period No.");
+          TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+          TimeChartOrderLine.SETRANGE("Invoice Category Relations",TRUE);
+          IF TimeChartOrderLine.FINDLAST THEN
+            IF NOT TimeChartOrderLine."Prolonged Delivery" THEN
+              ERROR(TE_007,TimeChartOrderLine."Period No.",FIELDCAPTION("Prolonged Delivery"));
+        END ELSE BEGIN
+          TimeChartOrderLine.RESET;
+          TimeChartOrderLine.SETCURRENTKEY("Order No.","Period No.");
+          TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+          TimeChartOrderLine.SETRANGE("Invoice Category","Invoice Category");
+          IF TimeChartOrderLine.FINDLAST THEN
+            IF NOT TimeChartOrderLine."Prolonged Delivery" THEN
+              ERROR(TE_007,TimeChartOrderLine."Period No.",FIELDCAPTION("Prolonged Delivery"));
+         END;
+      CALCFIELDS("Invoice Category Name");
+      IF NOT TimeInvCategory.GET("Invoice Category") THEN
+        CLEAR(TimeInvCategory);
+      "Price per" := TimeInvCategory."Price per";
+    END;
+
+    PROCEDURE UpdateLines@1119430007(_FieldNo@1119430001 : Integer);
+    VAR
+      LO_RE_TimeChartOrderLine@1119430000 : Record 5059041;
+      LO_RE_CashFlow@1000000000 : Record 5059050;
+      LO_OrderChartering@1000000002 : Record 5059040;
+      LO_CU_TCMgt@1000000001 : Codeunit 5059040;
+    BEGIN
+      IF NOT (_FieldNo IN
+        [FIELDNO("(A) Period from"),
+        FIELDNO("(F) Period until"),
+        FIELDNO("(F) Period from"),
+        FIELDNO("(F) Period from Time (UTC)"),
+
+        FIELDNO("(A) Period end at"),
+        FIELDNO("(A) Period from Time (UTC)"),
+        FIELDNO("(F) Period until Time (UTC)"),
+        FIELDNO("Prolonged Delivery"),
+        FIELDNO("(A) Period end at Time (UTC)")
+        ])
+      THEN
+        EXIT;
+
+      IF "Attached to Line No." <> 0 THEN BEGIN
+        LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Attached to Line No.","Attached to Line No.");
+        LO_RE_TimeChartOrderLine.SETFILTER("Line No.",'<>%1',"Line No.");
+        IF LO_RE_TimeChartOrderLine.FINDSET THEN REPEAT
+          LO_RE_TimeChartOrderLine.MARK(TRUE);
+        UNTIL LO_RE_TimeChartOrderLine.NEXT = 0;
+        LO_RE_TimeChartOrderLine.SETRANGE("Attached to Line No.");
+        IF LO_RE_TimeChartOrderLine.GET("Order No.","Attached to Line No.") THEN
+          LO_RE_TimeChartOrderLine.MARK(TRUE);
+        LO_RE_TimeChartOrderLine.MARKEDONLY(TRUE);
+      END ELSE BEGIN
+        LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+        //LO_RE_TimeChartOrderLine.SETRANGE("Attached to Line No.","Line No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Period No.","Period No.");
+        LO_RE_TimeChartOrderLine.SETFILTER("Line No.",'<>%1',"Line No.");
+      END;
+      IF LO_RE_TimeChartOrderLine.FINDSET THEN BEGIN
+      REPEAT
+        CASE _FieldNo OF
+          FIELDNO("Prolonged Delivery") :
+            LO_RE_TimeChartOrderLine.VALIDATE("Prolonged Delivery","Prolonged Delivery");
+          FIELDNO("(A) Period from") :
+            LO_RE_TimeChartOrderLine.VALIDATE("(A) Period from","(A) Period from");
+          FIELDNO("(F) Period until") :
+            BEGIN
+              LO_RE_TimeChartOrderLine.VALIDATE("(F) Period until","(F) Period until");
+              IF (LO_RE_TimeChartOrderLine."(A) Period end at" = 0D) OR
+                 (LO_RE_TimeChartOrderLine."(A) Period end at" > LO_RE_TimeChartOrderLine."(F) Period until")
+              THEN
+                LO_RE_TimeChartOrderLine.VALIDATE("(A) Period end at", LO_RE_TimeChartOrderLine."(F) Period until");
+            END;
+
+          FIELDNO("(A) Period end at") :
+            LO_RE_TimeChartOrderLine.VALIDATE("(A) Period end at","(A) Period end at");
+
+          FIELDNO("(A) Period from Time (UTC)") :
+            LO_RE_TimeChartOrderLine.VALIDATE("(A) Period from Time (UTC)","(A) Period from Time (UTC)");
+          FIELDNO("(F) Period until Time (UTC)") :
+            BEGIN
+              LO_RE_TimeChartOrderLine.VALIDATE("(F) Period until Time (UTC)","(F) Period until Time (UTC)");
+              IF ("(A) Period end at Time (UTC)" = 0T) OR
+                 ((LO_RE_TimeChartOrderLine."(A) Period end at" = LO_RE_TimeChartOrderLine."(F) Period until") AND
+                  ("(A) Period end at Time (UTC)" > "(F) Period until Time (UTC)"))
+              THEN
+                LO_RE_TimeChartOrderLine.VALIDATE("(A) Period end at Time (UTC)", "(F) Period until Time (UTC)");
+            END;
+          FIELDNO("(A) Period end at Time (UTC)") :
+            LO_RE_TimeChartOrderLine.VALIDATE("(A) Period end at Time (UTC)","(A) Period end at Time (UTC)");
+        END;
+        LO_RE_TimeChartOrderLine.MODIFY(TRUE);
+      UNTIL LO_RE_TimeChartOrderLine.NEXT = 0;
+      END ELSE BEGIN
+      END;
+
+      IF _FieldNo IN [FIELDNO("(A) Period end at"),FIELDNO("(A) Period end at Time (UTC)")] THEN BEGIN
+        LO_RE_TimeChartOrderLine.RESET;
+        LO_RE_TimeChartOrderLine.SETCURRENTKEY("Order No.","Period No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Period No.","Period No." + 1);
+        IF LO_RE_TimeChartOrderLine.FINDFIRST THEN REPEAT
+          CASE _FieldNo OF
+            FIELDNO("(A) Period end at") :
+              LO_RE_TimeChartOrderLine.VALIDATE("(A) Period from","(A) Period end at");
+            FIELDNO("(A) Period end at Time (UTC)") :
+              LO_RE_TimeChartOrderLine.VALIDATE("(A) Period from Time (UTC)","(A) Period end at Time (UTC)");
+          END;
+          LO_RE_TimeChartOrderLine.MODIFY(TRUE);
+        UNTIL LO_RE_TimeChartOrderLine.NEXT = 0;
+      END;
+
+      IF _FieldNo IN [FIELDNO("(A) Period from"),FIELDNO("(A) Period from Time (UTC)")] THEN BEGIN
+        LO_RE_TimeChartOrderLine.RESET;
+        LO_RE_TimeChartOrderLine.SETCURRENTKEY("Order No.","Period No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+        LO_RE_TimeChartOrderLine.SETRANGE("Period No.","Period No." - 1);
+        LO_RE_TimeChartOrderLine.SETRANGE("Prolonged Delivery",TRUE);
+        IF LO_RE_TimeChartOrderLine.FINDFIRST THEN REPEAT
+          CASE _FieldNo OF
+            FIELDNO("(A) Period from") :
+              BEGIN
+                IF "(A) Period from" < LO_RE_TimeChartOrderLine."(A) Period end at" THEN BEGIN
+                  ERROR(TE_008, FIELDCAPTION("(A) Period from"), FIELDCAPTION("(A) Period end at"),LO_RE_TimeChartOrderLine."Period No.");
+                END;
+                   END;
+            FIELDNO("(A) Period from Time (UTC)") :
+              BEGIN
+                IF "(A) Period from" = LO_RE_TimeChartOrderLine."(A) Period end at" THEN BEGIN
+                  IF "(A) Period from Time (UTC)" < LO_RE_TimeChartOrderLine."(A) Period end at Time (UTC)" THEN BEGIN
+                    ERROR(TE_008, FIELDCAPTION("(A) Period from Time (UTC)"), FIELDCAPTION("(A) Period end at Time (UTC)"),LO_RE_TimeChartOrderLine."Period No.");
+                  END;
+                END;
+              END;
+          END;
+         LO_RE_TimeChartOrderLine.MODIFY(TRUE);
+        UNTIL LO_RE_TimeChartOrderLine.NEXT = 0;
+      END;
+
+      IF ("(A) Period from" <> xRec."(A) Period from") OR ("(A) Period end at" <> xRec."(A) Period end at") THEN BEGIN
+        LO_RE_CashFlow.RESET;
+        LO_RE_CashFlow.SETRANGE("Order No.","Order No.");
+        LO_RE_CashFlow.SETRANGE("Period No","Period No.");
+        IF LO_RE_CashFlow.FINDSET THEN BEGIN
+          IF CONFIRM(TE_012,FALSE) THEN BEGIN
+          MODIFY;
+          LO_OrderChartering.GET("Order No.");
+          LO_CU_TCMgt.CreateCashFlowLines(LO_OrderChartering);
+          END;
+        END;
+      END;
+    END;
+
+    PROCEDURE SetUpNewLine@9(LastTimeOrderChartLine@1000 : Record 5059041;BottomLine@1002 : Boolean);
+    VAR
+      TimeInvCategory@1119430000 : Record 5059043;
+    BEGIN
+      IF LastTimeOrderChartLine."Order No." <> "Order No." THEN
+        CLEAR(LastTimeOrderChartLine);
+      IF NOT TimeInvCategory.GET("Invoice Category") THEN
+        CLEAR(TimeInvCategory)
+      ELSE
+        TimeInvCategory.CALCFIELDS(Relations);
+      IF TimeInvCategory.Relations THEN
+        "Period No." := LastTimeOrderChartLine."Period No." + 1
+      ELSE BEGIN
+        IF LastTimeOrderChartLine."Period No." = 0 THEN
+          "Period No." := 1
+        ELSE
+          "Period No." := LastTimeOrderChartLine."Period No.";
+        "Attached to Line No." := LastTimeOrderChartLine."Attached to Line No.";
+      END;
+    END;
+
+    PROCEDURE PeriodBegin@1119430005() : Boolean;
+    VAR
+      TimeOrderChartLine@1119430000 : Record 5059041;
+    BEGIN
+      TimeOrderChartLine.SETRANGE("Order No.","Order No.");
+      TimeOrderChartLine.SETRANGE("Period No.","Period No.");
+      IF TimeOrderChartLine.FINDFIRST THEN
+        IF TimeOrderChartLine."Line No." = "Line No." THEN
+          EXIT(TRUE);
+    END;
+
+    PROCEDURE LineExist@1119430008() : Boolean;
+    VAR
+      TimeOrderChartLine@1119430000 : Record 5059041;
+    BEGIN
+      TimeOrderChartLine.COPY(Rec);
+      EXIT(TimeOrderChartLine.FIND);
+    END;
+
+    PROCEDURE SetPeriodNo@1119430009();
+    VAR
+      LO_RE_TimeOrderChartLine@1119430000 : Record 5059041;
+      LO_RE_TimeOrderChartLine2@1119430001 : Record 5059041;
+      LO_IN_PeriodNo@1119430002 : Integer;
+    BEGIN
+      LO_RE_TimeOrderChartLine.SETRANGE("Order No.","Order No.");
+      LO_RE_TimeOrderChartLine.SETFILTER("Line No.",'<>%1',"Line No.");
+      LO_RE_TimeOrderChartLine.SETRANGE("Attached to Line No.",0);
+      IF LO_RE_TimeOrderChartLine.FINDSET THEN
+      REPEAT
+        LO_IN_PeriodNo +=1;
+        LO_RE_TimeOrderChartLine."Period No." := LO_IN_PeriodNo;
+        LO_RE_TimeOrderChartLine.MODIFY;
+        LO_RE_TimeOrderChartLine2.SETRANGE("Order No.","Order No.");
+        LO_RE_TimeOrderChartLine2.SETRANGE("Attached to Line No.",LO_RE_TimeOrderChartLine."Line No.");
+        LO_RE_TimeOrderChartLine2.MODIFYALL(LO_RE_TimeOrderChartLine2."Period No.",LO_RE_TimeOrderChartLine."Period No.");
+      UNTIL LO_RE_TimeOrderChartLine.NEXT=0;
+    END;
+
+    PROCEDURE CalcPeriodEnd@1119430010();
+    VAR
+      TestDIV@1119430000 : Decimal;
+      testMOD@1119430001 : Decimal;
+    BEGIN
+      "(F) Period until" := "(A) Period from" + (Quantity DIV 1);
+      "(F) Period until Time (UTC)" := "(A) Period from Time (UTC)" + ((Quantity MOD 1) * 24 * 60 *60 *1000);
+
+      "(A) Period end at" := "(F) Period until";
+      "(A) Period end at Time (UTC)" := "(F) Period until Time (UTC)";
+
+      UpdateLines(FIELDNO("(F) Period until"));
+      UpdateLines(FIELDNO("(F) Period until Time (UTC)"));
+      UpdateLines(FIELDNO("(A) Period end at"));
+      UpdateLines(FIELDNO("(A) Period end at Time (UTC)"));
+    END;
+
+    PROCEDURE LookUpCurrencyCode2@1119430011(Editable@1119430003 : Boolean) : Boolean;
+    VAR
+      LO_RE_Currency@1119430002 : Record 5058802;
+      LO_RE_TempCurrency@1119430001 : TEMPORARY Record 5058802;
+      LO_RE_GLSetup@1119430000 : Record 98;
+    BEGIN
+      //LO_RE_Currency.SETRANGE("List Invoice Tool",TRUE);
+      //LO_RE_Currency.SETRANGE("Buying/Selling Rate",LO_RE_Currency."Buying/Selling Rate"::"0");
+      IF LO_RE_Currency.FINDSET THEN REPEAT
+        LO_RE_TempCurrency := LO_RE_Currency;
+        LO_RE_TempCurrency.INSERT;
+      UNTIL LO_RE_Currency.NEXT = 0;
+      LO_RE_GLSetup.GET;
+      IF LO_RE_GLSetup."LCY Code" <> '' THEN BEGIN
+        LO_RE_TempCurrency.INIT;
+        LO_RE_TempCurrency.Code := LO_RE_GLSetup."LCY Code";
+        LO_RE_TempCurrency.Description := LO_RE_GLSetup."LCY Code";
+        IF LO_RE_TempCurrency.INSERT THEN;
+      END;
+      IF PAGE.RUNMODAL(0,LO_RE_TempCurrency) = ACTION::LookupOK THEN
+        IF Editable THEN BEGIN
+          VALIDATE("Currency Code 2",LO_RE_TempCurrency.Code);
+          EXIT(TRUE);
+        END;
+    END;
+
+    PROCEDURE CalcCVE@1119430013(I_OP_Base@1119430001 : '30Days,365Days';I_DE_Price@1119430002 : Decimal;I_DE_Quantity@1119430003 : Decimal) : Decimal;
+    BEGIN
+      CASE I_OP_Base OF
+        I_OP_Base::"30Days":EXIT(I_DE_Price*I_DE_Quantity);
+        I_OP_Base::"365Days":EXIT(I_DE_Price*12/365*30*I_DE_Quantity);
+      END;
+    END;
+
+    PROCEDURE IsCVE@1119430012(I_CO_Category@1119430000 : Code[20]) : Boolean;
+    VAR
+      LO_RE_TCCategory@1119430001 : Record 5059043;
+    BEGIN
+      IF NOT LO_RE_TCCategory.GET(I_CO_Category) THEN
+       EXIT(FALSE);
+      EXIT(LO_RE_TCCategory.CVE);
+    END;
+
+    PROCEDURE CalcAmount@1119430015();
+    BEGIN
+      IF IsCVE("Invoice Category") THEN
+        Amount := CalcCVE("CVE Calculation","Price per Time",Quantity)
+      ELSE
+        Amount := "Price per Time" * Quantity;
+    END;
+
+    PROCEDURE CalcAmount2@1119430017();
+    BEGIN
+      TESTFIELD("2nd Currency");
+
+      IF IsCVE("Invoice Category") THEN
+        "Amount 2" := CalcCVE("CVE Calculation","Price per Time 2",Quantity)
+      ELSE
+        "Amount 2":= "Price per Time 2" * Quantity;
+    END;
+
+    LOCAL PROCEDURE CheckOrderStatus@1000000003();
+    VAR
+      TimeCharterOrder@1000000000 : Record 5059040;
+    BEGIN
+      TimeCharterOrder.GET("Order No.");
+      TimeCharterOrder.TESTFIELD(TimeCharterOrder.Status,TimeCharterOrder.Status::Open);
+    END;
+
+    LOCAL PROCEDURE CheckInvCategory@1000000005();
+    BEGIN
+      TimeChartOrderLine.RESET;
+      TimeChartOrderLine.SETCURRENTKEY("Order No.","Period No.");
+      TimeChartOrderLine.SETRANGE("Order No.","Order No.");
+      TimeChartOrderLine.SETRANGE("Invoice Category","Invoice Category");
+      TimeChartOrderLine.SETRANGE("Period No.","Period No.");
+      TimeChartOrderLine.SETFILTER("Line No.",'<>%1',"Line No.");
+      IF TimeChartOrderLine.FINDSET THEN
+        ERROR(TE_011,"Invoice Category","Period No.");
+    END;
+
+    BEGIN
+    {
+      P0107-MWA-15032016 : Find TC Resource Price
+    }
+    END.
+  }
+}
+

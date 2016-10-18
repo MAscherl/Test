@@ -1,0 +1,493 @@
+OBJECT Table 85903 TC Invoices without Order
+{
+  OBJECT-PROPERTIES
+  {
+    Date=29.08.16;
+    Time=14:07:04;
+    Version List=PAM9.00,TC;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=Yes;
+    OnInsert=BEGIN
+               ValidateSalesHeader;
+             END;
+
+    OnModify=BEGIN
+               ValidateSalesHeader;
+             END;
+
+    OnDelete=VAR
+               LO_RE_TCCashFlow@1119430000 : Record 5059050;
+             BEGIN
+               IF SalesHeader.GET("Sales Line Document Type", "Sales Line Document No.") THEN BEGIN
+                 SalesHeader."Charter Order No." := '';
+                 SalesHeader.MODIFY;
+               END;
+             END;
+
+    CaptionML=[DEU=TC Invoices without order;
+               ENU=TC Invoices without order];
+  }
+  FIELDS
+  {
+    { 1   ;   ;Sales Line Document Type;Option    ;CaptionML=[DEU=Belegart;
+                                                              ENU=Document Type];
+                                                   OptionCaptionML=[DEU=Angebot,Auftrag,Rechnung,Gutschrift,Rahmenauftrag,Reklamation;
+                                                                    ENU=Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order];
+                                                   OptionString=Quote,Order,Invoice,Credit Memo,Blanket Order,Return Order }
+    { 2   ;   ;Sales Line Document No.;Code20     ;CaptionML=[DEU=Belegnr.;
+                                                              ENU=Document No.] }
+    { 3   ;   ;Sales Line Line No. ;Integer       ;CaptionML=[DEU=Zeilennr.;
+                                                              ENU=Line No.] }
+    { 4   ;   ;Resource No.        ;Code20        ;TableRelation=Resource;
+                                                   OnValidate=BEGIN
+                                                                ValidateSalesLine(FIELDNO("Resource No."));
+                                                              END;
+
+                                                   CaptionML=[DEU=Resource No.;
+                                                              ENU=Resource No.] }
+    { 5   ;   ;Date from           ;Date          ;OnValidate=BEGIN
+                                                                CalcQuantity;
+                                                                ValidateSalesLine(FIELDNO("Date from"));
+                                                              END;
+
+                                                   CaptionML=[DEU=Date from;
+                                                              ENU=Date from] }
+    { 6   ;   ;Time from           ;Time          ;OnValidate=BEGIN
+                                                                CalcQuantity;
+                                                                ValidateSalesLine(FIELDNO("Time from"));
+                                                              END;
+
+                                                   CaptionML=[DEU=Time from;
+                                                              ENU=Time from] }
+    { 7   ;   ;Date until          ;Date          ;OnValidate=BEGIN
+                                                                CalcQuantity;
+                                                                ValidateSalesLine(FIELDNO("Date until"));
+                                                              END;
+
+                                                   CaptionML=[DEU=Date until;
+                                                              ENU=Date until] }
+    { 8   ;   ;Time until          ;Time          ;OnValidate=BEGIN
+                                                                CalcQuantity;
+                                                                ValidateSalesLine(FIELDNO("Time until"));
+                                                              END;
+
+                                                   CaptionML=[DEU=Time until;
+                                                              ENU=Time until] }
+    { 9   ;   ;Quantity            ;Decimal       ;OnValidate=BEGIN
+                                                                ValidateSalesLine(FIELDNO(Quantity));
+                                                                Amount := "Unit Price" * Quantity;
+                                                              END;
+
+                                                   CaptionML=[DEU=Quantity;
+                                                              ENU=Quantity];
+                                                   DecimalPlaces=0:5 }
+    { 10  ;   ;Price per           ;Option        ;OnValidate=BEGIN
+                                                                ValidateSalesLine(FIELDNO("Price per"));
+                                                              END;
+
+                                                   CaptionML=[DEU=Price per;
+                                                              ENU=Price per];
+                                                   OptionCaptionML=[DEU=Day,Month;
+                                                                    ENU=Day,Month];
+                                                   OptionString=Day,Month;
+                                                   Editable=No }
+    { 11  ;   ;Unit Price          ;Decimal       ;OnValidate=BEGIN
+                                                                UpdateAmountsSalesLine;
+
+                                                                ValidateSalesLine(FIELDNO("Unit Price"));
+                                                                Amount := "Unit Price" * Quantity;
+                                                              END;
+
+                                                   CaptionML=[DEU=Unit Price Time Charter Order;
+                                                              ENU=Unit Price Time Charter Order] }
+    { 12  ;   ;Amount              ;Decimal       ;CaptionML=[DEU=Original Amount Time Charter Order;
+                                                              ENU=Original Amount Time Charter Order];
+                                                   AutoFormatType=1 }
+    { 13  ;   ;Currency Code       ;Code10        ;TableRelation="Master Currency";
+                                                   OnValidate=VAR
+                                                                Currency@1119430000 : Record 5058802;
+                                                                LO_RE_OrderCharteringFreight@1119430001 : Record 5059041;
+                                                              BEGIN
+                                                                ValidateSalesLine(FIELDNO("Currency Code"));
+                                                              END;
+
+                                                   CaptionML=[DEU=Currency;
+                                                              ENU=Currency] }
+    { 14  ;   ;Description         ;Text50        ;CaptionML=[DEU=Description;
+                                                              ENU=Description] }
+    { 15  ;   ;Description 2       ;Text50        ;CaptionML=[DEU=Description 2;
+                                                              ENU=Description 2] }
+    { 16  ;   ;Line Amount         ;Decimal       ;CaptionML=[DEU=Line Amount;
+                                                              ENU=Line Amount];
+                                                   AutoFormatType=1;
+                                                   AutoFormatExpr="Currency Code" }
+    { 17  ;   ;Commission %        ;Decimal       ;OnValidate=VAR
+                                                                TimeCharterCashFlowLine@1000000000 : Record 5059050;
+                                                              BEGIN
+                                                                SalesSetup_gRec.GET;
+                                                                "Commission Posting Description" := STRSUBSTNO(SalesSetup_gRec."Commission Posting Description" , FORMAT("Commission %") + FORMAT('% '));
+
+                                                                UpdateAmountsSalesLine;
+                                                              END;
+
+                                                   MinValue=0;
+                                                   MaxValue=100 }
+    { 18  ;   ;Commission Posting Description;Text50;
+                                                   CaptionML=[DEU=Commission Posting Description;
+                                                              ENU=Commission Posting Description] }
+    { 19  ;   ;Charterer Code      ;Code20        ;CaptionML=[DEU=Charterer;
+                                                              ENU=Charterer] }
+    { 20  ;   ;Charter Name        ;Text50        ;CaptionML=[DEU=Charter Name;
+                                                              ENU=Charter Name] }
+    { 21  ;   ;Unit Price Sales Line;Decimal      ;OnValidate=BEGIN
+                                                                ValidateSalesLine(FIELDNO("Unit Price Sales Line"));
+                                                                "Amount Sales Line" := "Unit Price Sales Line" * Quantity;
+                                                              END;
+
+                                                   CaptionML=[DEU=Unit Price Sales Line;
+                                                              ENU=Unit Price Sales Line] }
+    { 22  ;   ;Amount Sales Line   ;Decimal       ;CaptionML=[DEU=Amount Sales Line;
+                                                              ENU=Amount Sales Line];
+                                                   AutoFormatType=1 }
+    { 23  ;   ;Bank Account No.    ;Code20        ;TableRelation=IF (Currency Code=FILTER(='')) "Bank Account".No. WHERE (Bank Account Type=CONST(Customer Payment))
+                                                                 ELSE IF (Currency Code=FILTER(<>'')) "Bank Account".No. WHERE (Bank Account Type=CONST(Customer Payment),
+                                                                                                                                Currency Code=FIELD(Currency Code));
+                                                   OnValidate=BEGIN
+                                                                ValidateSalesLine(FIELDNO("Bank Account No."));
+                                                              END;
+
+                                                   CaptionML=[DEU=Bank Account No.;
+                                                              ENU=Bank Account No.] }
+    { 24  ;   ;Bank Account Name   ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Bank Account".Name WHERE (No.=FIELD(Bank Account No.)));
+                                                   CaptionML=[DEU=Bank Account Name;
+                                                              ENU=Bank Account Name];
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;Sales Line Document Type,Sales Line Document No.,Sales Line Line No.;
+                                                   Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      GLSetup@1119430001 : Record 98;
+      SalesSetup@1000000000 : Record 311;
+      Text001@1000000001 : TextConst 'DEU=Hire Period %1 does not exist.;ENU=Hire Period %1 does not exist.';
+      MasterCurrency@1000000004 : Record 5058802;
+      CompanyCurrency@1000000005 : Record 5058801;
+      Month@1000000002 : Decimal;
+      TimeCharterOrder@1000000003 : Record 5059040;
+      SalesSetup_gRec@1000000006 : Record 311;
+      SalesHeader@1000000007 : Record 36;
+      SalesLine@1000000008 : Record 37;
+      Text002@1000000010 : TextConst 'DEU="From:      %1 - %2 ";ENU="From:      %1 - %2 "';
+      Text003@1000000009 : TextConst 'DEU="To:          %1 - %2 ";ENU="To:          %1 - %2 "';
+      LineSpacing@1000000011 : Integer;
+      Text000@1000000012 : TextConst 'DEU=There is not enough space to insert new lines.;ENU=There is not enough space to insert new lines.';
+      NextLineNo@1000000013 : Integer;
+      DocumentText@1000000014 : Record 5059086;
+      LinesRecreated@1000000015 : Boolean;
+
+    LOCAL PROCEDURE ValidateSalesHeader@1000000000();
+    BEGIN
+      IF SalesHeader.GET("Sales Line Document Type", "Sales Line Document No.") THEN BEGIN
+        SalesHeader."Charter Order No." := 'TC Invoice Manual';
+        SalesHeader."Commission %" := "Commission %";
+        SalesHeader."Commission Posting Description" := "Commission Posting Description";
+        //SalesHeader."Bank Account No." := "Bank Account No.";
+        SalesHeader.MODIFY;
+      END;
+      CreateDocumentText(Rec, SalesHeader);
+    END;
+
+    LOCAL PROCEDURE ValidateSalesLine@1000000001(FIELDNO@1000000000 : Integer);
+    BEGIN
+      SalesLine.RESET;
+      IF SalesLine.GET("Sales Line Document Type", "Sales Line Document No.", "Sales Line Line No.") THEN BEGIN
+        CASE FIELDNO OF
+          Rec.FIELDNO("Resource No."):
+            SalesLine.VALIDATE("No.", "Resource No.");
+
+          Rec.FIELDNO("Date from"):
+            SalesLine.VALIDATE(Description, STRSUBSTNO(Text002
+                                             ,FORMAT("Date from",0,'<Day,2>.<Month,2>.<Year4>')
+                                             ,FORMAT("Time from",0,'<Hours,2><Filler Character,0>:<Minutes,2>')));
+
+          Rec.FIELDNO("Time from"):
+            SalesLine.VALIDATE(Description, STRSUBSTNO(Text002
+                                             ,FORMAT("Date from",0,'<Day,2>.<Month,2>.<Year4>')
+                                             ,FORMAT("Time from",0,'<Hours,2><Filler Character,0>:<Minutes,2>')));
+
+          Rec.FIELDNO("Date until"):
+            UpdateHireToLine;
+
+          Rec.FIELDNO("Time until"):
+            UpdateHireToLine;
+
+          Rec.FIELDNO(Quantity):
+            SalesLine.VALIDATE(Quantity, Quantity);
+
+          Rec.FIELDNO("Unit Price Sales Line"):
+            SalesLine.VALIDATE("Unit Price", "Unit Price Sales Line");
+
+          Rec.FIELDNO("Currency Code"):
+          BEGIN
+            SalesLine.VALIDATE("Currency Code", "Currency Code");
+          END;
+
+          Rec.FIELDNO("Bank Account No."):
+          BEGIN
+
+          END;
+
+        END;
+      END;
+      IF (NOT LinesRecreated) AND (SalesLine."Document No." <> '') THEN
+       SalesLine.MODIFY;
+    END;
+
+    PROCEDURE InsertHireTo@2(VAR SalesLine@1000 : Record 37);
+    VAR
+      ToSalesLine@1001 : Record 37;
+    BEGIN
+      ToSalesLine.RESET;
+      ToSalesLine.SETRANGE("Document Type",SalesLine."Document Type");
+      ToSalesLine.SETRANGE("Document No.",SalesLine."Document No.");
+      ToSalesLine := SalesLine;
+      IF ToSalesLine.FIND('>') THEN BEGIN
+        LineSpacing :=
+          (ToSalesLine."Line No." - SalesLine."Line No.") DIV
+          2;
+        IF LineSpacing = 0 THEN
+          ERROR(Text000);
+      END ELSE
+        LineSpacing := 10000;
+
+      NextLineNo := SalesLine."Line No." + LineSpacing;
+
+      ToSalesLine.INIT;
+      ToSalesLine."Document Type" := SalesLine."Document Type";
+      ToSalesLine."Document No." := SalesLine."Document No.";
+      ToSalesLine."Line No." := NextLineNo;
+      ToSalesLine.Description := STRSUBSTNO(Text003
+                                 ,FORMAT("Date until",0,'<Day,2>.<Month,2>.<Year4>')
+                                 ,FORMAT("Time until",0,'<Hours,2><Filler Character,0>:<Minutes,2>'));
+
+      ToSalesLine."Attached to Line No." := SalesLine."Line No.";
+      ToSalesLine.INSERT;
+    END;
+
+    LOCAL PROCEDURE UpdateHireToLine@1000000002();
+    VAR
+      SalesLineHireTo@1000000000 : Record 37;
+    BEGIN
+      SalesLineHireTo.SETRANGE("Document Type", SalesLine."Document Type");
+      SalesLineHireTo.SETRANGE("Document No.", SalesLine."Document No.");
+      SalesLineHireTo.SETRANGE("Attached to Line No.", SalesLine."Line No.");
+      IF SalesLineHireTo.FINDFIRST THEN BEGIN
+        SalesLineHireTo.Description := STRSUBSTNO(Text003
+                                      ,FORMAT("Date until",0,'<Day,2>.<Month,2>.<Year4>')
+                                      ,FORMAT("Time until",0,'<Hours,2><Filler Character,0>:<Minutes,2>'));
+        SalesLineHireTo.MODIFY;
+      END;
+    END;
+
+    LOCAL PROCEDURE InsertDocumentText@1000000003();
+    VAR
+      TimeCharterOrder@1000000000 : Record 5059040;
+    BEGIN
+      DocumentText.SETRANGE("Table ID", 36);
+      DocumentText.SETRANGE("Document Type", DocumentText."Document Type"::Invoice);
+      DocumentText.SETRANGE(No, SalesHeader."No.");
+      DocumentText.SETRANGE("Document No. Occurrence", 0);
+      DocumentText.SETRANGE("Version No.", 0);
+      DocumentText.SETRANGE("Text Type", DocumentText."Text Type"::Pretext);
+      IF NOT DocumentText.FINDFIRST THEN
+        CreateDocumentText(Rec,SalesHeader);
+    END;
+
+    LOCAL PROCEDURE DeleteDocumentText@1000000004();
+    BEGIN
+    END;
+
+    PROCEDURE CreateDocumentText@1000000018(VAR TCInvoiceswithoutOrder@1000000003 : Record 85903;VAR I_RE_SalesHeader@1000000001 : Record 36);
+    VAR
+      LO_RE_DocumentText@1000000000 : Record 5059086;
+      Text001@1000000002 : TextConst 'DEU=C/P Date:             %1;ENU=Charter Party Dated %1';
+      Text002@1000000004 : TextConst 'DEU=Charterer:            %1;ENU=Charterer:            %1';
+      Text003@1000000005 : TextConst 'DEU=Charter Name:     %1;ENU=Charter Name:     %1';
+      Text004@1000000006 : TextConst 'DEU=Vessel:                 %1;ENU=Vessel:                 %1';
+      Text005@1000000007 : TextConst 'DEU=HP No.:                %1;ENU=HP No.:                %1';
+    BEGIN
+      I_RE_SalesHeader.CALCFIELDS("Vessel Name");
+
+      LO_RE_DocumentText.INIT;
+      LO_RE_DocumentText."Table ID" := 36;
+      LO_RE_DocumentText."Document Type" := LO_RE_DocumentText."Document Type"::Invoice;
+      LO_RE_DocumentText.No := I_RE_SalesHeader."No.";
+      LO_RE_DocumentText."Document No. Occurrence" := 0;
+      LO_RE_DocumentText."Version No." := 0;
+      LO_RE_DocumentText."Text Type" := LO_RE_DocumentText."Text Type"::Pretext;
+      LO_RE_DocumentText.Text := STRSUBSTNO(Text005,I_RE_SalesHeader."Posting Description");
+      LO_RE_DocumentText.Line := 10000;
+      LO_RE_DocumentText.Bold := TRUE;
+      IF NOT LO_RE_DocumentText.INSERT THEN
+        LO_RE_DocumentText.MODIFY;
+
+      LO_RE_DocumentText.INIT;
+      LO_RE_DocumentText."Table ID" := 36;
+      LO_RE_DocumentText."Document Type" := LO_RE_DocumentText."Document Type"::Invoice;
+      LO_RE_DocumentText.No := I_RE_SalesHeader."No.";
+      LO_RE_DocumentText."Document No. Occurrence" := 0;
+      LO_RE_DocumentText."Version No." := 0;
+      LO_RE_DocumentText."Text Type" := LO_RE_DocumentText."Text Type"::Pretext;
+      LO_RE_DocumentText.Text := '';
+      LO_RE_DocumentText.Line := 20000;
+      IF NOT LO_RE_DocumentText.INSERT THEN
+        LO_RE_DocumentText.MODIFY;
+
+
+
+      LO_RE_DocumentText.INIT;
+      LO_RE_DocumentText."Table ID" := 36;
+      LO_RE_DocumentText."Document Type" := LO_RE_DocumentText."Document Type"::Invoice;
+      LO_RE_DocumentText.No := I_RE_SalesHeader."No.";
+      LO_RE_DocumentText."Document No. Occurrence" := 0;
+      LO_RE_DocumentText."Version No." := 0;
+      LO_RE_DocumentText."Text Type" := LO_RE_DocumentText."Text Type"::Pretext;
+      IF I_RE_SalesHeader."Charterers Vessel Name" <> '' THEN
+          LO_RE_DocumentText.Text := STRSUBSTNO(Text004, UPPERCASE(I_RE_SalesHeader."Charterers Vessel Name"))
+      ELSE
+          LO_RE_DocumentText.Text := STRSUBSTNO(Text004, UPPERCASE(I_RE_SalesHeader."Vessel Name"));
+      LO_RE_DocumentText.Line := 30000;
+      IF NOT LO_RE_DocumentText.INSERT THEN
+        LO_RE_DocumentText.MODIFY;
+
+      LO_RE_DocumentText.INIT;
+      LO_RE_DocumentText."Table ID" := 36;
+      LO_RE_DocumentText."Document Type" := LO_RE_DocumentText."Document Type"::Invoice;
+      LO_RE_DocumentText.No := I_RE_SalesHeader."No.";
+      LO_RE_DocumentText."Document No. Occurrence" := 0;
+      LO_RE_DocumentText."Version No." := 0;
+      LO_RE_DocumentText."Text Type" := LO_RE_DocumentText."Text Type"::Pretext;
+      LO_RE_DocumentText.Text := STRSUBSTNO(Text003,"Charter Name");
+      LO_RE_DocumentText.Line := 40000;
+      IF NOT LO_RE_DocumentText.INSERT THEN
+        LO_RE_DocumentText.MODIFY;
+
+      LO_RE_DocumentText.INIT;
+      LO_RE_DocumentText."Table ID" := 36;
+      LO_RE_DocumentText."Document Type" := LO_RE_DocumentText."Document Type"::Invoice;
+      LO_RE_DocumentText.No := I_RE_SalesHeader."No.";
+      LO_RE_DocumentText."Document No. Occurrence" := 0;
+      LO_RE_DocumentText."Version No." := 0;
+      LO_RE_DocumentText."Text Type" := LO_RE_DocumentText."Text Type"::Pretext;
+      LO_RE_DocumentText.Text :=  STRSUBSTNO(Text001, '');
+      LO_RE_DocumentText.Line := GetLineNoDocumentText(LO_RE_DocumentText."Table ID",
+                                                       LO_RE_DocumentText."Document Type",
+                                                       LO_RE_DocumentText.No,
+                                                       LO_RE_DocumentText."Document No. Occurrence",
+                                                       LO_RE_DocumentText."Version No.",
+                                                       LO_RE_DocumentText."Text Type");
+      LO_RE_DocumentText.Line := 50000;
+      IF NOT LO_RE_DocumentText.INSERT THEN
+        LO_RE_DocumentText.MODIFY;
+
+      LO_RE_DocumentText.INIT;
+      LO_RE_DocumentText."Table ID" := 36;
+      LO_RE_DocumentText."Document Type" := LO_RE_DocumentText."Document Type"::Invoice;
+      LO_RE_DocumentText.No := I_RE_SalesHeader."No.";
+      LO_RE_DocumentText."Document No. Occurrence" := 0;
+      LO_RE_DocumentText."Version No." := 0;
+      LO_RE_DocumentText."Text Type" := LO_RE_DocumentText."Text Type"::Pretext;
+      LO_RE_DocumentText.Text := STRSUBSTNO(Text002,"Charterer Code");
+      LO_RE_DocumentText.Line := GetLineNoDocumentText(LO_RE_DocumentText."Table ID",
+                                                       LO_RE_DocumentText."Document Type",
+                                                       LO_RE_DocumentText.No,
+                                                       LO_RE_DocumentText."Document No. Occurrence",
+                                                       LO_RE_DocumentText."Version No.",
+                                                       LO_RE_DocumentText."Text Type");
+      LO_RE_DocumentText.Line := 60000;
+      IF NOT LO_RE_DocumentText.INSERT THEN
+        LO_RE_DocumentText.MODIFY;
+    END;
+
+    LOCAL PROCEDURE GetLineNoDocumentText@1000000026(TableID@1000000000 : Integer;DocumentType@1000000001 : 'Quote,Order,Invoice,Credit Memo,Shipment,Blanket Order,Return Order,Reminder';No@1000000002 : Code[20];DocumentNoOccurence@1000000003 : Integer;VersionNo@1000000004 : Integer;TextType@1000000005 : 'Pretext,Posttext') : Integer;
+    VAR
+      DocumentText@1000000006 : Record 5059086;
+    BEGIN
+      CLEAR(DocumentText);
+      DocumentText.SETRANGE("Table ID", TableID);
+      DocumentText.SETRANGE("Document Type", DocumentType);
+      DocumentText.SETRANGE(No, No);
+      DocumentText.SETRANGE("Document No. Occurrence", DocumentNoOccurence);
+      DocumentText.SETRANGE("Version No.", VersionNo);
+      DocumentText.SETRANGE("Text Type", TextType);
+      IF DocumentText.FINDLAST THEN
+        EXIT(DocumentText.Line + 10000)
+      ELSE
+        EXIT(10000);
+    END;
+
+    LOCAL PROCEDURE CalcQuantity@1000000005();
+    VAR
+      TCCashFlowLine@1000000000 : Record 5059050;
+      TCInvoiceCategory@1000000001 : Record 5059043;
+      Month@1000000002 : Decimal;
+    BEGIN
+      IF "Date from" > "Date until" THEN BEGIN
+        VALIDATE(Quantity, 0);
+        EXIT;
+      END;
+
+      IF ("Date from" <> 0D) AND ("Date until" <>0D) THEN BEGIN
+        Quantity := "Date until" - "Date from";
+      END ELSE BEGIN
+       Quantity := 0;
+      END;
+
+      IF ("Time until" = 0T) AND ("Time from" <> 0T) THEN BEGIN
+        EVALUATE("Time until", '00:00:00');
+      END;
+
+      IF ("Time until" <> 0T) AND ("Time from" = 0T) THEN BEGIN
+        EVALUATE("Time until", '00:00:00');
+      END;
+
+      IF ("Time until" <> 0T) AND ("Time from" <> 0T) THEN BEGIN
+        Quantity := Quantity + (("Time until" - "Time from") / 86400000);
+      END ELSE BEGIN
+        Quantity := Quantity + 1;
+      END;
+      VALIDATE(Quantity);
+      UpdateAmountsSalesLine;
+    END;
+
+    PROCEDURE UpdateAmountsSalesLine@3();
+    VAR
+      LineDiscountAmount@1000 : Decimal;
+    BEGIN
+      IF "Commission %" <> 0 THEN BEGIN
+        VALIDATE("Unit Price Sales Line", "Unit Price" * "Commission %"/100)
+      END ELSE
+        VALIDATE("Unit Price Sales Line", "Unit Price");
+    END;
+
+    PROCEDURE UpdateFromSalesHeader@1000000006(SalesHeader@1000000000 : Record 36);
+    BEGIN
+      //VALIDATE("Bank Account No.", SalesHeader."Bank Account No.");
+      MODIFY;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

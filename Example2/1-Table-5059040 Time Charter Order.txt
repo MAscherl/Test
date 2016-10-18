@@ -1,0 +1,1336 @@
+OBJECT Table 5059040 Time Charter Order
+{
+  OBJECT-PROPERTIES
+  {
+    Date=17.10.16;
+    Time=15:06:18;
+    Modified=Yes;
+    Version List=PAM9.00,TC;
+  }
+  PROPERTIES
+  {
+    DataCaptionFields=Order No.,Customer/Vendor Name;
+    OnInsert=BEGIN
+               SalesSetup_gRec.GET;
+               PurchSetup_gRec.GET;
+
+               IF "Order Direction" = "Order Direction"::"TC-OUT" THEN BEGIN
+                 IF "Order No." = '' THEN BEGIN
+                   SalesSetup_gRec.TESTFIELD(OrderTimeCharterNos_fCod);
+                   NoSeriesMgt_gCdu.InitSeries(SalesSetup_gRec.OrderTimeCharterNos_fCod,xRec.Region,0D,"Order No.","No. Series");
+                 END;
+               END ELSE BEGIN
+                 IF "Order No." = '' THEN BEGIN
+                   PurchSetup_gRec.TESTFIELD(OrderTimeCharterNos_fCod);
+                   NoSeriesMgt_gCdu.InitSeries(PurchSetup_gRec.OrderTimeCharterNos_fCod,xRec.Region,0D,"Order No.","No. Series");
+                 END;
+
+               END;
+
+               "Created by":= USERID;
+               "Created at":= CURRENTDATETIME;
+
+               "Company Name" := COMPANYNAME;
+
+               IF "Order Direction" = "Order Direction"::"TC-OUT" THEN BEGIN
+                 "Language Code" := SalesSetup_gRec."Default Language Code TC";
+                 VALIDATE("Currency Code",SalesSetup_gRec."Currency Code TC");
+                 "Currency Code Bunker Invoice" := SalesSetup_gRec."Currency Code Bunker Invoice";
+                 IF "Project No." = '' THEN BEGIN
+                   SalesSetup_gRec.TESTFIELD("Process Nos.");
+                   NoSeriesMgt_gCdu.InitSeries(SalesSetup_gRec."Process Nos.",SalesSetup_gRec."Process Nos.",TODAY,"Project No.","No. Series");
+                 END;
+               END ELSE BEGIN
+                 "Language Code" := PurchSetup_gRec."Default Language Code TC";
+                 VALIDATE("Currency Code",PurchSetup_gRec."Currency Code TC");
+                 "Currency Code Bunker Invoice" := PurchSetup_gRec."Currency Code Bunker Invoice";
+                 IF "Project No." = '' THEN BEGIN
+                   PurchSetup_gRec.TESTFIELD("Process Nos.");
+                   NoSeriesMgt_gCdu.InitSeries(PurchSetup_gRec."Process Nos.",PurchSetup_gRec."Process Nos.",TODAY,"Project No.","No. Series");
+                 END;
+               END;
+             END;
+
+    OnModify=BEGIN
+               "Last Change by" :=  USERID;
+               "Last Change at" := CURRENTDATETIME;
+
+               IF ("Delivery Date" <> xRec."Delivery Date") OR
+                  ("Delivery Time (UTC)" <> xRec."Delivery Time (UTC)")
+               THEN
+                 UpdateLines;
+             END;
+
+    OnDelete=VAR
+               LO_RE_TimeCharterBunker@1000000000 : Record 5059045;
+               LO_RE_InvProp@1119430000 : Record 5059050;
+               LO_RE_TCComm@1113900000 : Record 5059042;
+               LO_RE_TCLine@1113900001 : Record 5059041;
+               LO_RE_InvPeriod@1000000001 : Record 5059052;
+             BEGIN
+               LO_RE_InvProp.RESET;
+               LO_RE_InvProp.SETRANGE(LO_RE_InvProp."Order No.","Order No.");
+               LO_RE_InvProp.SETRANGE(LO_RE_InvProp.Invoiced,TRUE);
+               IF LO_RE_InvProp.FINDFIRST THEN
+                 ERROR(TE_Text009,"Order No.");
+
+               LO_RE_TCComm.SETRANGE(OrderNo_fCod,"Order No.");
+               IF NOT LO_RE_TCComm.ISEMPTY THEN
+                 LO_RE_TCComm.DELETEALL;
+
+               LO_RE_TCLine.SETRANGE("Order No.","Order No.");
+               IF NOT LO_RE_TCLine.ISEMPTY THEN
+                 LO_RE_TCLine.DELETEALL;
+
+
+               LO_RE_TimeCharterBunker.SETRANGE("Time Charter Order No.", "Order No.");
+               IF LO_RE_TimeCharterBunker.FINDFIRST THEN BEGIN
+                 LO_RE_TimeCharterBunker.DELETEALL;
+               END;
+               LO_RE_InvProp.RESET;
+               LO_RE_InvProp.SETRANGE(LO_RE_InvProp."Order No.","Order No.");
+               IF NOT LO_RE_InvProp.ISEMPTY THEN
+                 LO_RE_InvProp.DELETEALL;
+
+               LO_RE_InvPeriod.RESET;
+               LO_RE_InvPeriod.SETRANGE("Order No.","Order No.");
+               LO_RE_InvPeriod.DELETEALL;
+             END;
+
+    CaptionML=[DEU=Time Charter Order;
+               ENU=Time Charter Order];
+    LookupPageID=Page5059071;
+    DrillDownPageID=Page5059071;
+  }
+  FIELDS
+  {
+    { 1   ;   ;Order No.           ;Code20        ;OnValidate=BEGIN
+                                                                IF "Order Direction" = "Order Direction"::"TC-OUT" THEN BEGIN
+                                                                  IF "Order No." <> xRec."Order No." THEN BEGIN
+                                                                      SalesSetup_gRec.GET;
+                                                                    NoSeriesMgt_gCdu.TestManual(SalesSetup_gRec.OrderTimeCharterNos_fCod);
+                                                                    Region := '';
+                                                                  END;
+                                                                END ELSE BEGIN
+                                                                  IF "Order No." <> xRec."Order No." THEN BEGIN
+                                                                      PurchSetup_gRec.GET;
+                                                                    NoSeriesMgt_gCdu.TestManual(PurchSetup_gRec.OrderTimeCharterNos_fCod);
+                                                                    Region := '';
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Order No.;
+                                                              ENU=Order No.] }
+    { 2   ;   ;Voyage No.          ;Code20        ;TableRelation="Dimension Value".Code;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CheckInvoicedCashFlowLines;
+                                                                ValidateShortcutDimCode_gFnc(2,"Voyage No.");
+                                                                GetVessel;
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              LookUpVoyageNo;
+                                                            END;
+
+                                                   CaptionML=[DEU=Voyage No.;
+                                                              ENU=Voyage No.] }
+    { 3   ;   ;CP Type             ;Code20        ;TableRelation="Time Charter Party Type";
+                                                   CaptionML=[DEU=C/P Type;
+                                                              ENU=C/P Type] }
+    { 4   ;   ;Customer/Vendor No. ;Code20        ;TableRelation=IF (Order Direction=CONST(TC-OUT)) Customer
+                                                                 ELSE IF (Order Direction=CONST(TC-IN)) Vendor;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CheckInvoicedCashFlowLines;
+                                                                IF "Customer/Vendor No." <> '' THEN BEGIN
+                                                                  IF "Order Direction" = "Order Direction"::"TC-OUT" THEN BEGIN
+                                                                    Cust.GET("Customer/Vendor No.");
+                                                                    "Customer/Vendor Name" := Cust.Name;
+                                                                    IF Cust."Bill-to Customer No." <> '' THEN
+                                                                      VALIDATE("Bill-to/Pay-to No.",Cust."Bill-to Customer No.")
+                                                                    ELSE
+                                                                      VALIDATE("Bill-to/Pay-to No.",Cust."No.");
+                                                                  END ELSE BEGIN
+                                                                    Vend.GET("Customer/Vendor No.");
+                                                                    "Customer/Vendor Name" := Vend.Name;
+                                                                    IF Vend."Pay-to Vendor No." <> '' THEN
+                                                                      VALIDATE("Bill-to/Pay-to No.",Vend."Pay-to Vendor No.")
+                                                                    ELSE
+                                                                      VALIDATE("Bill-to/Pay-to No.",Vend."No.");
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Customer/Vendor No.;
+                                                              ENU=Customer/Vendor No.] }
+    { 5   ;   ;Customer/Vendor Name;Text50        ;CaptionML=[DEU=Customer/Vendor Name;
+                                                              ENU=Customer/Vendor Name];
+                                                   Editable=Yes }
+    { 10  ;   ;Project No.         ;Code20        ;CaptionML=[DEU=Project No.;
+                                                              ENU=Project No.] }
+    { 12  ;   ;Booking cancelled   ;Boolean       ;CaptionML=[DEU=Booking cancelled;
+                                                              ENU=Booking cancelled] }
+    { 15  ;   ;Desk                ;Code10        ;TableRelation=Department;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CALCFIELDS("Name Desk");
+                                                              END;
+
+                                                   CaptionML=[DEU=Desk;
+                                                              ENU=Desk] }
+    { 16  ;   ;Region              ;Code10        ;TableRelation=Department;
+                                                   CaptionML=[DEU=Region;
+                                                              ENU=Region] }
+    { 17  ;   ;Region Name         ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Department.Name_fTxt WHERE (Number_fCod=FIELD(Region)));
+                                                   CaptionML=[DEU=Region Name;
+                                                              ENU=Region Name];
+                                                   Editable=No }
+    { 19  ;   ;Vessel No.          ;Code10        ;TableRelation=Vessel;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                IF NOT Vessel.GET("Vessel No.") THEN
+                                                                  CLEAR(Vessel);
+                                                                VALIDATE("Vessel Class",Vessel."Vessel Class Code");
+                                                              END;
+
+                                                   CaptionML=[DEU=Vessel No.;
+                                                              ENU=Vessel No.] }
+    { 20  ;   ;Vessel Name         ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Vessel.Name_fTxt WHERE (Number_fCod=FIELD(Vessel No.)));
+                                                   CaptionML=[DEU=Vessel Name;
+                                                              ENU=Vessel Name];
+                                                   Editable=No }
+    { 21  ;   ;Requested Time of Shipment;Date    ;CaptionML=[DEU=Requested Time of Shipment;
+                                                              ENU=Requested Time of Shipment] }
+    { 23  ;   ;No. Series          ;Code10        ;TableRelation="No. Series";
+                                                   CaptionML=[DEU=Nummernserie;
+                                                              ENU=No. Series];
+                                                   Editable=No }
+    { 24  ;   ;Operator Code       ;Code10        ;TableRelation=Salesperson/Purchaser;
+                                                   OnValidate=VAR
+                                                                LO_RE_Salesperson@1119430000 : Record 13;
+                                                              BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CALCFIELDS("Operator Name");
+
+                                                                LO_RE_Salesperson.SETRANGE("User ID","Operator Code");
+                                                                IF LO_RE_Salesperson.FINDFIRST THEN
+                                                                  VALIDATE("Desk Operations",LO_RE_Salesperson.Department);
+                                                              END;
+
+                                                   CaptionML=[DEU=Operator Code;
+                                                              ENU=Operator Code] }
+    { 25  ;   ;Operator Name       ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Salesperson/Purchaser.Name WHERE (Code=FIELD(Operator Code)));
+                                                   CaptionML=[DEU=Operator Name;
+                                                              ENU=Operator Name];
+                                                   Editable=No }
+    { 27  ;   ;Payment Terms Code  ;Code20        ;TableRelation="Time Charter Payment Terms".Code;
+                                                   OnValidate=VAR
+                                                                LO_RE_PaymentTerms@1000000000 : Record 5059048;
+                                                              BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CheckInvoicedCashFlowLines;
+
+                                                                IF LO_RE_PaymentTerms.GET("Payment Terms Code") THEN BEGIN
+                                                                  "Payment Terms Name" := LO_RE_PaymentTerms.Description;
+                                                                  "Invoice Interval Name" := LO_RE_PaymentTerms.GetInvoiceIntervalName;
+                                                                END ELSE BEGIN
+                                                                  "Payment Terms Name" := '';
+                                                                  "Invoice Interval Name" := '';
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Payment Terms Code;
+                                                              ENU=Payment Terms Code] }
+    { 29  ;   ;Payment Terms Name  ;Text80        ;CaptionML=[DEU=Payment Terms Name 1.1;
+                                                              ENU=Payment Terms Name 1.1];
+                                                   Editable=Yes }
+    { 30  ;   ;Invoice Interval Name;Text50       ;CaptionML=[DEU=Invoice Interval;
+                                                              ENU="Invoice Interval "] }
+    { 31  ;   ;Currency Code       ;Code10        ;OnValidate=VAR
+                                                                Currency@1119430000 : Record 5058802;
+                                                                LO_RE_OrderCharteringFreight@1119430001 : Record 5059041;
+                                                              BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CheckInvoicedCashFlowLines;
+                                                                IF "Currency Code" = '' THEN BEGIN
+                                                                  CLEAR("Bank Account No.");
+                                                                  EXIT;
+                                                                END;
+
+                                                                GLSetup.CHANGECOMPANY("Company Name");
+
+                                                                GLSetup.GET;
+                                                                IF NOT ("Currency Code"  IN ['',GLSetup."LCY Code"]) THEN BEGIN
+                                                                  Currency.CHANGECOMPANY("Company Name");
+                                                                  Currency.GET(GLSetup."LCY Code","Currency Code");
+                                                                END;
+                                                                BankAccount_gRec.CHANGECOMPANY("Company Name");
+
+                                                                IF "Currency Code" = GLSetup."LCY Code" THEN
+                                                                  BankAccount_gRec.SETRANGE("Currency Code",'')
+                                                                ELSE
+                                                                  BankAccount_gRec.SETRANGE("Currency Code","Currency Code");
+
+                                                                BankAccount_gRec.SETRANGE("Bank Account Type",BankAccount_gRec."Bank Account Type"::"Customer Payment");
+
+                                                                IF BankAccount_gRec.FINDFIRST THEN BEGIN
+                                                                  "Bank Account No." := BankAccount_gRec."No.";
+                                                                END;
+
+                                                                {
+                                                                END ELSE BEGIN
+                                                                  ERROR(TE_Text005,
+                                                                        "Company Name",
+                                                                        BankAccount_gRec.FIELDCAPTION("Currency Code"),
+                                                                        BankAccount_gRec.GETFILTER("Currency Code"),
+                                                                        FORMAT(BankAccount_gRec."Bank Account Type"::"Customer Payment"));
+                                                                END;
+                                                                }
+                                                                LO_RE_OrderCharteringFreight.SETRANGE("Order No.","Order No.");
+                                                                IF LO_RE_OrderCharteringFreight.FINDSET THEN BEGIN
+                                                                  REPEAT
+                                                                    LO_RE_OrderCharteringFreight."Currency Code" := "Currency Code";
+                                                                    LO_RE_OrderCharteringFreight.MODIFY(TRUE);
+                                                                  UNTIL LO_RE_OrderCharteringFreight.NEXT = 0;
+                                                                END;
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              LookUpCurrencyCode;
+                                                            END;
+
+                                                   CaptionML=[DEU=Currency;
+                                                              ENU=Currency] }
+    { 33  ;   ;Order closed        ;Boolean       ;CaptionML=[DEU=Order closed;
+                                                              ENU=Order closed] }
+    { 34  ;   ;Vessel Class        ;Code10        ;TableRelation="Vessel Class";
+                                                   OnValidate=BEGIN
+                                                                CALCFIELDS("Vessel Class Name");
+                                                              END;
+
+                                                   CaptionML=[DEU=Vessel Class;
+                                                              ENU=Vessel Class] }
+    { 35  ;   ;Vessel Class Name   ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Vessel Class".Name WHERE (Code=FIELD(Vessel Class)));
+                                                   CaptionML=[DEU=Vessel Class Name;
+                                                              ENU=Vessel Class Name] }
+    { 36  ;   ;Fixed by            ;Code10        ;TableRelation=Salesperson/Purchaser;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CALCFIELDS("Name fixed By");
+                                                              END;
+
+                                                   CaptionML=[DEU=Fixed by;
+                                                              ENU=Fixed by] }
+    { 37  ;   ;Commission          ;Boolean       ;FieldClass=Normal;
+                                                   CaptionML=[DEU=Commission;
+                                                              ENU=Commission];
+                                                   Editable=No }
+    { 38  ;   ;Laycan from         ;Date          ;CaptionML=[DEU=Laycan from;
+                                                              ENU=Laycan from];
+                                                   NotBlank=Yes }
+    { 39  ;   ;Laycan until        ;Date          ;OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CheckInvoicedCashFlowLines;
+                                                                IF ("Laycan from Time" <> 0T) AND ("Laycan until Time" = 0T) THEN
+                                                                  "Laycan until Time" := "Laycan from Time";
+                                                              END;
+
+                                                   CaptionML=[DEU=Laycan until;
+                                                              ENU=Laycan until];
+                                                   NotBlank=Yes }
+    { 40  ;   ;C/P Date            ;Date          ;CaptionML=[DEU=C/P Date;
+                                                              ENU=C/P Date] }
+    { 41  ;   ;Shortcut Dimension 1 Code;Code20   ;TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(1));
+                                                   OnValidate=BEGIN
+                                                                ValidateShortcutDimCode(1,"Shortcut Dimension 1 Code");
+                                                              END;
+
+                                                   CaptionML=[DEU=Shortcutdimensionscode 1;
+                                                              ENU=Shortcut Dimension 1 Code];
+                                                   CaptionClass='1,2,1' }
+    { 42  ;   ;Shortcut Dimension 2 Code;Code20   ;TableRelation="Dimension Value".Code WHERE (Global Dimension No.=CONST(2));
+                                                   OnValidate=BEGIN
+                                                                ValidateShortcutDimCode(2,"Shortcut Dimension 2 Code");
+                                                              END;
+
+                                                   CaptionML=[DEU=Shortcutdimensionscode 2;
+                                                              ENU=Shortcut Dimension 2 Code];
+                                                   CaptionClass='1,2,2' }
+    { 43  ;   ;Language Code       ;Code10        ;TableRelation=Language;
+                                                   CaptionML=[DEU=Language Code;
+                                                              ENU=Language Code] }
+    { 44  ;   ;Shipment Method Code;Code10        ;TableRelation="Shipment Method";
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                              END;
+
+                                                   CaptionML=[DEU=Shipment Method Code;
+                                                              ENU=Shipment Method Code] }
+    { 50  ;   ;Created by          ;Code50        ;CaptionML=[DEU=Created by;
+                                                              ENU=Created by];
+                                                   Editable=No }
+    { 51  ;   ;Last Change by      ;Code50        ;CaptionML=[DEU=Last Change by;
+                                                              ENU=Last Change by];
+                                                   Editable=No }
+    { 54  ;   ;Bill-to/Pay-to No.  ;Code20        ;TableRelation=IF (Order Direction=CONST(TC-IN)) Vendor
+                                                                 ELSE IF (Order Direction=CONST(TC-OUT)) Customer;
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                IF "Order Direction" = "Order Direction"::"TC-OUT" THEN BEGIN
+                                                                  GetCust("Bill-to/Pay-to No.");
+                                                                  IF "Bill-to/Pay-to No." <> '' THEN BEGIN
+                                                                    Cust.TESTFIELD("Customer Posting Group");
+                                                                  END;
+
+                                                                  "Bill-to Name" := Cust.Name;
+                                                                  "Bill-to Name 2" := Cust."Name 2";
+                                                                  "Bill-to Address" := Cust.Address;
+                                                                  "Bill-to Address 2" := Cust."Address 2";
+                                                                  "Bill-to City" := Cust.City;
+                                                                  "Bill-to Post Code" := Cust."Post Code";
+                                                                  "Bill-to County" := Cust.County;
+                                                                  "Bill-to Country/Region Code" := Cust."Country/Region Code";
+                                                                END ELSE BEGIN
+                                                                  GetVend("Bill-to/Pay-to No.");
+                                                                  IF "Bill-to/Pay-to No." <> '' THEN BEGIN
+                                                                    Vend.TESTFIELD("Vendor Posting Group");
+                                                                  END;
+
+                                                                  "Bill-to Name" := Vend.Name;
+                                                                  "Bill-to Name 2" := Vend."Name 2";
+                                                                  "Bill-to Address" := Vend.Address;
+                                                                  "Bill-to Address 2" := Vend."Address 2";
+                                                                  "Bill-to City" := Vend.City;
+                                                                  "Bill-to Post Code" := Vend."Post Code";
+                                                                  "Bill-to County" := Vend.County;
+                                                                  "Bill-to Country/Region Code" := Vend."Country/Region Code";
+
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Bill-to/Pay-to No.;
+                                                              ENU=Bill-to/Pay-to No.] }
+    { 55  ;   ;Bill-to Name        ;Text50        ;CaptionML=[DEU=Bill-to Name;
+                                                              ENU=Bill-to Name] }
+    { 56  ;   ;Bill-to Name 2      ;Text50        ;CaptionML=[DEU=Bill-to Name 2;
+                                                              ENU=Bill-to Name 2] }
+    { 57  ;   ;Bill-to Address     ;Text50        ;CaptionML=[DEU=Bill-to Address;
+                                                              ENU=Bill-to Address] }
+    { 58  ;   ;Bill-to Address 2   ;Text50        ;CaptionML=[DEU=Bill-to Address 2;
+                                                              ENU=Bill-to Address 2] }
+    { 59  ;   ;Bill-to City        ;Text30        ;OnValidate=BEGIN
+                                                                PostCode.ValidateCity(
+                                                                  "Bill-to City","Bill-to Post Code","Bill-to County","Bill-to Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   CaptionML=[DEU=Bill-to City;
+                                                              ENU=Bill-to City] }
+    { 60  ;   ;Bill-to Contact     ;Text50        ;CaptionML=[DEU=Bill-to Contact;
+                                                              ENU=Bill-to Contact] }
+    { 61  ;   ;Bill-to Post Code   ;Code20        ;TableRelation="Post Code";
+                                                   OnValidate=BEGIN
+                                                                PostCode.ValidatePostCode(
+                                                                  "Bill-to City","Bill-to Post Code","Bill-to County","Bill-to Country/Region Code",(CurrFieldNo <> 0) AND GUIALLOWED);
+                                                              END;
+
+                                                   ValidateTableRelation=No;
+                                                   TestTableRelation=No;
+                                                   CaptionML=[DEU=Bill-to Post Code;
+                                                              ENU=Bill-to Post Code] }
+    { 62  ;   ;Bill-to County      ;Text30        ;CaptionML=[DEU=Bill-to County;
+                                                              ENU=Bill-to County] }
+    { 63  ;   ;Bill-to Country/Region Code;Code10 ;TableRelation=Country/Region;
+                                                   CaptionML=[DEU=Bill-to Country/Region Code;
+                                                              ENU=Bill-to Country/Region Code] }
+    { 64  ;   ;Bill-to Customer Template Code;Code10;
+                                                   TableRelation="Customer Template";
+                                                   OnValidate=VAR
+                                                                BillToCustTemplate@1001 : Record 5105;
+                                                              BEGIN
+                                                              END;
+
+                                                   CaptionML=[DEU=Bill-to Customer Template Code;
+                                                              ENU=Bill-to Customer Template Code] }
+    { 65  ;   ;Plan Delivery Area  ;Code20        ;CaptionML=[DEU=Plan Delivery Area;
+                                                              ENU=Plan Delivery Area] }
+    { 66  ;   ;Plan Redelivery Area;Code20        ;CaptionML=[DEU=Plan Redelivery Area;
+                                                              ENU=Plan Redelivery Area] }
+    { 80  ;   ;Bank Account No.    ;Code20        ;TableRelation=IF (Currency Code=FILTER(=''),
+                                                                     Order Direction=CONST(TC-OUT)) "Bank Account".No. WHERE (Bank Account Type=CONST(Customer Payment))
+                                                                     ELSE IF (Currency Code=FILTER(<>''),
+                                                                              Order Direction=CONST(TC-OUT)) "Bank Account".No. WHERE (Bank Account Type=CONST(Customer Payment),
+                                                                                                                                       Currency Code=FIELD(Currency Code))
+                                                                                                                                       ELSE IF (Order Direction=CONST(TC-IN)) "Vendor Bank Account".Code WHERE (Vendor No.=FIELD(Customer/Vendor No.));
+                                                   OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+
+                                                                IF BankAccount_gRec.GET(Rec."Bank Account No.") THEN
+                                                                  "Currency Code" := BankAccount_gRec."Currency Code";
+
+                                                                {
+                                                                  IF ("Currency Code" <> '') AND ("Currency Code" <> BankAccount_gRec."Currency Code") THEN BEGIN
+                                                                    IF CONFIRM(STRSUBSTNO(Text001_gCtx,BankAccount_gRec.FIELDCAPTION("Currency Code"),Rec.TABLECAPTION,
+                                                                               BankAccount_gRec.TABLECAPTION),FALSE) THEN BEGIN
+                                                                      VALIDATE("Currency Code", BankAccount_gRec."Currency Code");
+                                                                    END ELSE BEGIN
+                                                                      ERROR(STRSUBSTNO(Text002_gCtx,FIELDCAPTION("Bank Account No.")));
+                                                                    END;
+                                                                  END ELSE BEGIN
+                                                                    VALIDATE("Currency Code", BankAccount_gRec."Currency Code");
+                                                                  END;
+                                                                END;
+
+                                                                IF "Currency Code" = '' THEN BEGIN
+                                                                  GLSetup.GET;
+                                                                  "Currency Code" := GLSetup."LCY Code";
+                                                                END;
+                                                                }
+                                                              END;
+
+                                                   CaptionML=[DEU=Bank Account No.;
+                                                              ENU=Bank Account No.] }
+    { 81  ;   ;Carry over Name     ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Time Charter Commission".Text_fTxt WHERE (OrderNo_fCod=FIELD(Order No.),
+                                                                                                                 Carry over=CONST(Yes)));
+                                                   CaptionML=[DEU=c/o;
+                                                              ENU=c/o];
+                                                   Editable=No }
+    { 82  ;   ;Payment Reference   ;Text250       ;CaptionML=[DEU=Payment Reference;
+                                                              ENU=Payment Reference] }
+    { 89  ;   ;Bank Account Name   ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Bank Account".Name WHERE (No.=FIELD(Bank Account No.)));
+                                                   CaptionML=[DEU=Bank Account Name;
+                                                              ENU=Bank Account Name];
+                                                   Editable=No }
+    { 90  ;   ;Carry over Name 2   ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Time Charter Commission".Text2_fTxt WHERE (OrderNo_fCod=FIELD(Order No.),
+                                                                                                                  Carry over=CONST(Yes)));
+                                                   CaptionML=[DEU=c/o 2;
+                                                              ENU=c/o 2];
+                                                   Editable=No }
+    { 101 ;   ;Number of Invoice   ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Sales Header" WHERE (Document Type=CONST(Invoice),
+                                                                                           Charter Order No.=FIELD(Order No.),
+                                                                                           Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Number of Invoice;
+                                                              ENU=Number of Invoice];
+                                                   Editable=No }
+    { 102 ;   ;Number of booked Invoirce;Integer  ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Sales Invoice Header" WHERE (Order No. Chartering=FIELD(Order No.),
+                                                                                                   Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Number of booked Invoirce;
+                                                              ENU=Number of booked Invoirce];
+                                                   Editable=No }
+    { 103 ;   ;Invoice Amount      ;Decimal       ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("Sales Line"."Line Amount" WHERE (Document Type=CONST(Invoice),
+                                                                                                     Originally Ordered No.=FIELD(Order No.),
+                                                                                                     Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Invoice Amount;
+                                                              ENU=Invoice Amount];
+                                                   Editable=No }
+    { 104 ;   ;booked Invoice Amount;Decimal      ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("Sales Invoice Line"."Line Amount" WHERE (Order No.=FIELD(Order No.),
+                                                                                                             Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Booked Invoice Amount;
+                                                              ENU=Booked Invoice Amount];
+                                                   Editable=No }
+    { 105 ;   ;Number of Cr. Memos ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Sales Header" WHERE (Document Type=CONST(Credit Memo),
+                                                                                           Charter Order No.=FIELD(Order No.),
+                                                                                           Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Number of Cr. Note;
+                                                              ENU=Number of Cr. Note];
+                                                   Editable=No }
+    { 106 ;   ;Cr.Memo Amount      ;Decimal       ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("Sales Line"."Line Amount" WHERE (Document Type=CONST(Credit Memo),
+                                                                                                     Originally Ordered No.=FIELD(Order No.),
+                                                                                                     Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Cr. Note Amount;
+                                                              ENU=Cr. Note Amount];
+                                                   Editable=No }
+    { 107 ;   ;Number of posteded Cr.Memos;Integer;FieldClass=FlowField;
+                                                   CalcFormula=Count("Sales Cr.Memo Header" WHERE (Order No. Chartering=FIELD(Order No.),
+                                                                                                   Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Number of booked Cr. Note;
+                                                              ENU=Number of booked Cr. Note];
+                                                   Editable=No }
+    { 108 ;   ;posted Cr. Memo Amount;Decimal     ;FieldClass=FlowField;
+                                                   CalcFormula=Sum("Sales Cr.Memo Line"."Line Amount" WHERE (Order No.=FIELD(Order No.),
+                                                                                                             Charter Order Type=CONST(Time Charter)));
+                                                   CaptionML=[DEU=Booked Cr. Note Amount;
+                                                              ENU=Booked Cr. Note Amount];
+                                                   Editable=No }
+    { 110 ;   ;Created at          ;DateTime      ;CaptionML=[DEU=Created at;
+                                                              ENU=Created at];
+                                                   Editable=No }
+    { 111 ;   ;Last Change at      ;DateTime      ;CaptionML=[DEU=Last Change at;
+                                                              ENU=Last Change at];
+                                                   Editable=No }
+    { 113 ;   ;Order realized      ;Boolean       ;CaptionML=[DEU=Order realized;
+                                                              ENU=Order realized] }
+    { 218 ;   ;Name fixed By       ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Salesperson/Purchaser.Name WHERE (Code=FIELD(Fixed by)));
+                                                   CaptionML=[DEU=Name fixed By;
+                                                              ENU=Name fixed By];
+                                                   Editable=No }
+    { 219 ;   ;Name Desk           ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Department.Name_fTxt WHERE (Number_fCod=FIELD(Desk)));
+                                                   CaptionML=[DEU=Name Desk;
+                                                              ENU=Name Desk];
+                                                   Editable=No }
+    { 220 ;   ;Cargo No.           ;Code20        ;CaptionML=[DEU=Cargo No.;
+                                                              ENU=Cargo No.] }
+    { 221 ;   ;Desk Operations     ;Code10        ;TableRelation=Department;
+                                                   CaptionML=[DEU=Desk Operations;
+                                                              ENU=Desk Operations] }
+    { 222 ;   ;Name Desk Operations;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Department.Name_fTxt WHERE (Number_fCod=FIELD(Desk Operations)));
+                                                   CaptionML=[DEU=Name Desk Operations;
+                                                              ENU=Name Desk Operations];
+                                                   Editable=No }
+    { 230 ;   ;Laycan from Time    ;Time          ;CaptionML=[DEU=Laycan from Time;
+                                                              ENU=Laycan from Time];
+                                                   NotBlank=Yes }
+    { 231 ;   ;Laycan until Time   ;Time          ;CaptionML=[DEU=Laycan until Time;
+                                                              ENU=Laycan until Time];
+                                                   NotBlank=Yes }
+    { 232 ;   ;Duration            ;Integer       ;CaptionML=[DEU=Duration;
+                                                              ENU=Duration];
+                                                   BlankZero=Yes }
+    { 233 ;   ;Duration Type       ;Option        ;CaptionML=[DEU=Duration Type;
+                                                              ENU=Duration Type];
+                                                   OptionCaptionML=[DEU=Days,Weeks,Months,Years;
+                                                                    ENU=Days,Weeks,Months,Years];
+                                                   OptionString=Days,Weeks,Months,Years }
+    { 234 ;   ;Days min. Chopt     ;Integer       ;CaptionML=[DEU=Days min. Chopt;
+                                                              ENU=Days min. Chopt];
+                                                   BlankZero=Yes }
+    { 235 ;   ;Days max. Chopt     ;Integer       ;CaptionML=[DEU=Days max. Chopt;
+                                                              ENU=Days max. Chopt];
+                                                   BlankZero=Yes }
+    { 236 ;   ;Days min. Chopt 2   ;Integer       ;CaptionML=[DEU=Days min. Chopt 2;
+                                                              ENU=Days min. Chopt 2];
+                                                   BlankZero=Yes }
+    { 237 ;   ;Days max. Chopt 2   ;Integer       ;CaptionML=[DEU=Days max. Chopt 2;
+                                                              ENU=Days max. Chopt 2];
+                                                   BlankZero=Yes }
+    { 238 ;   ;Days min. Chopt 3   ;Integer       ;CaptionML=[DEU=Days min. Chopt 3;
+                                                              ENU=Days min. Chopt 3];
+                                                   BlankZero=Yes }
+    { 239 ;   ;Days max. Chopt 3   ;Integer       ;CaptionML=[DEU=Days max. Chopt 3;
+                                                              ENU=Days max. Chopt 3];
+                                                   BlankZero=Yes }
+    { 240 ;   ;Del. Notice 1       ;Integer       ;CaptionML=[DEU=Del. Notice 1;
+                                                              ENU=Del. Notice 1];
+                                                   BlankZero=Yes }
+    { 241 ;   ;Del. Notice 2       ;Integer       ;CaptionML=[DEU=Del. Notice 2;
+                                                              ENU=Del. Notice 2];
+                                                   BlankZero=Yes }
+    { 242 ;   ;Del. Notice 3       ;Integer       ;CaptionML=[DEU=Del. Notice 3;
+                                                              ENU=Del. Notice 3];
+                                                   BlankZero=Yes }
+    { 243 ;   ;Del. Notice 4       ;Integer       ;CaptionML=[DEU=Del. Notice 4;
+                                                              ENU=Del. Notice 4];
+                                                   BlankZero=Yes }
+    { 244 ;   ;Del. Notice 5       ;Integer       ;CaptionML=[DEU=Del. Notice 5;
+                                                              ENU=Del. Notice 5];
+                                                   BlankZero=Yes }
+    { 245 ;   ;Del. Notice 6       ;Integer       ;CaptionML=[DEU=Del. Notice 6;
+                                                              ENU=Del. Notice 6];
+                                                   BlankZero=Yes }
+    { 246 ;   ;Del. Notice 7       ;Integer       ;CaptionML=[DEU=Del. Notice 7;
+                                                              ENU=Del. Notice 7];
+                                                   BlankZero=Yes }
+    { 250 ;   ;Red. Notice 1       ;Integer       ;CaptionML=[DEU=Red. Notice 1;
+                                                              ENU=Red. Notice 1];
+                                                   BlankZero=Yes }
+    { 251 ;   ;Red. Notice 2       ;Integer       ;CaptionML=[DEU=Red. Notice 2;
+                                                              ENU=Red. Notice 2];
+                                                   BlankZero=Yes }
+    { 252 ;   ;Red. Notice 3       ;Integer       ;CaptionML=[DEU=Red. Notice 3;
+                                                              ENU=Red. Notice 3];
+                                                   BlankZero=Yes }
+    { 253 ;   ;Red. Notice 4       ;Integer       ;CaptionML=[DEU=Red. Notice 4;
+                                                              ENU=Red. Notice 4];
+                                                   BlankZero=Yes }
+    { 254 ;   ;Red. Notice 5       ;Integer       ;CaptionML=[DEU=Red. Notice 5;
+                                                              ENU=Red. Notice 5];
+                                                   BlankZero=Yes }
+    { 255 ;   ;Red. Notice 6       ;Integer       ;CaptionML=[DEU=Red. Notice 6;
+                                                              ENU=Red. Notice 6];
+                                                   BlankZero=Yes }
+    { 256 ;   ;Red. Notice 7       ;Integer       ;CaptionML=[DEU=Red. Notice 7;
+                                                              ENU=Red. Notice 7];
+                                                   BlankZero=Yes }
+    { 260 ;   ;Delivery Port       ;Code20        ;TableRelation="Port Chartering".PortNo_fCod;
+                                                   CaptionML=[DEU=Delivery Port;
+                                                              ENU=Delivery Port] }
+    { 261 ;   ;Delivery Date       ;Date          ;CaptionML=[DEU=Delivery Date;
+                                                              ENU=Delivery Date] }
+    { 262 ;   ;Delivery Time (LT)  ;Time          ;CaptionML=[DEU=Delivery (LT);
+                                                              ENU=Delivery (LT)] }
+    { 263 ;   ;Delivery Local Time Zone;Code10    ;TableRelation="Time Charter Time Zone";
+                                                   CaptionML=[DEU=Delivery Local Time Zone;
+                                                              ENU=Delivery Local Time Zone] }
+    { 264 ;   ;Delivery Time (UTC) ;Time          ;CaptionML=[DEU=Delivery Time (UTC);
+                                                              ENU=Delivery Time (UTC)] }
+    { 265 ;   ;Redelivery Port     ;Code20        ;TableRelation="Port Chartering".PortNo_fCod;
+                                                   CaptionML=[DEU=Redelivery Port;
+                                                              ENU=Redelivery Port] }
+    { 266 ;   ;Redelivery Date     ;Date          ;CaptionML=[DEU=Redelivery Date;
+                                                              ENU=Redelivery Date] }
+    { 267 ;   ;Redelivery Local Time;Time         ;CaptionML=[DEU=Redelivery (LT);
+                                                              ENU=Redelivery (LT)] }
+    { 268 ;   ;Redelivery Local Time Zone;Code10  ;TableRelation="Time Charter Time Zone";
+                                                   CaptionML=[DEU=Redelivery Local Time Zone;
+                                                              ENU=Redelivery Local Time Zone] }
+    { 269 ;   ;Redelivery Time     ;Time          ;CaptionML=[DEU=Redelivery Time (UTC);
+                                                              ENU=Redelivery Time (UTC)] }
+    { 270 ;   ;Delivery Port Name  ;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Port Chartering".PortName_fTxt WHERE (PortNo_fCod=FIELD(Delivery Port)));
+                                                   CaptionML=[DEU=Delivery Port Name;
+                                                              ENU=Delivery Port Name];
+                                                   Editable=No }
+    { 271 ;   ;Redelivery Port Name;Text50        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Port Chartering".PortName_fTxt WHERE (PortNo_fCod=FIELD(Redelivery Port)));
+                                                   CaptionML=[DEU=Redelivery Port Name;
+                                                              ENU=Redelivery Port Name];
+                                                   Editable=No }
+    { 280 ;   ;Company Name        ;Text30        ;TableRelation=Company.Name;
+                                                   OnValidate=BEGIN
+                                                                IF "Currency Code" <> '' THEN BEGIN
+                                                                  VALIDATE("Currency Code");
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Company;
+                                                              ENU=Company] }
+    { 281 ;   ;Days min. Chopt 4   ;Integer       ;CaptionML=[DEU=Days min. Chopt 4;
+                                                              ENU=Days min. Chopt 4];
+                                                   BlankZero=Yes }
+    { 282 ;   ;Days max. Chopt 4   ;Integer       ;CaptionML=[DEU=Days max. Chopt 4;
+                                                              ENU=Days max. Chopt 4];
+                                                   BlankZero=Yes }
+    { 283 ;   ;Days min. Chopt 5   ;Integer       ;CaptionML=[DEU=Days min. Chopt 5;
+                                                              ENU=Days min. Chopt 5];
+                                                   BlankZero=Yes }
+    { 284 ;   ;Days max. Chopt 5   ;Integer       ;CaptionML=[DEU=Days max. Chopt 5;
+                                                              ENU=Days max. Chopt 5];
+                                                   BlankZero=Yes }
+    { 285 ;   ;Days min. Chopt 6   ;Integer       ;CaptionML=[DEU=Days min. Chopt 6;
+                                                              ENU=Days min. Chopt 6];
+                                                   BlankZero=Yes }
+    { 286 ;   ;Days max. Chopt 6   ;Integer       ;CaptionML=[DEU=Days max. Chopt 6;
+                                                              ENU=Days max. Chopt 6];
+                                                   BlankZero=Yes }
+    { 287 ;   ;Days min. Chopt 7   ;Integer       ;CaptionML=[DEU=Days min. Chopt 7;
+                                                              ENU=Days min. Chopt 7];
+                                                   BlankZero=Yes }
+    { 288 ;   ;Days max. Chopt 7   ;Integer       ;CaptionML=[DEU=Days max. Chopt 7;
+                                                              ENU=Days max. Chopt 7];
+                                                   BlankZero=Yes }
+    { 289 ;   ;MOL Chopt.          ;Decimal       ;CaptionML=[DEU=MOL Chopt.;
+                                                              ENU=MOL Chopt.] }
+    { 290 ;   ;Plan Delivery Port  ;Code20        ;TableRelation="Port Chartering".PortNo_fCod;
+                                                   CaptionML=[DEU=Delivery Port;
+                                                              ENU=Delivery Port] }
+    { 291 ;   ;Plan Delivery Date from;Date       ;OnValidate=BEGIN
+                                                                IF "Plan Delivery Date to" <> 0D THEN BEGIN
+                                                                  IF "Plan Delivery Date from" > "Plan Delivery Date to"  THEN BEGIN
+                                                                    ERROR(TE_Text007, FIELDCAPTION("Plan Delivery Date from"), FIELDCAPTION("Plan Delivery Date to"));
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Plan Delivery Date from;
+                                                              ENU=Plan Delivery Date from] }
+    { 292 ;   ;Plan Delivery Date to;Date         ;OnValidate=BEGIN
+                                                                IF "Plan Delivery Date to" <> 0D THEN BEGIN
+                                                                  IF "Plan Delivery Date from" > "Plan Delivery Date to"  THEN BEGIN
+                                                                    ERROR(TE_Text007, FIELDCAPTION("Plan Delivery Date from"), FIELDCAPTION("Plan Delivery Date to"));
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Plan Delivery Date to;
+                                                              ENU=Plan Delivery Date to] }
+    { 293 ;   ;Plan Delivery Time  ;Time          ;CaptionML=[DEU=Delivery Time (UTC);
+                                                              ENU=Delivery Time (UTC)] }
+    { 294 ;   ;Plan Redelivery Port;Code20        ;TableRelation="Port Chartering".PortNo_fCod;
+                                                   CaptionML=[DEU=Redelivery Port;
+                                                              ENU=Redelivery Port] }
+    { 295 ;   ;Plan Redelivery Date from;Date     ;OnValidate=BEGIN
+                                                                IF "Plan Redelivery Date to" <> 0D THEN BEGIN
+                                                                  IF "Plan Redelivery Date from" > "Plan Redelivery Date to"  THEN BEGIN
+                                                                    ERROR(TE_Text007, FIELDCAPTION("Plan Redelivery Date from"), FIELDCAPTION("Plan Redelivery Date to"));
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Redelivery Date from;
+                                                              ENU=Redelivery Date from] }
+    { 296 ;   ;Plan Redelivery Date to;Date       ;OnValidate=BEGIN
+                                                                IF "Plan Redelivery Date to" <> 0D THEN BEGIN
+                                                                  IF "Plan Redelivery Date from" > "Plan Redelivery Date to"  THEN BEGIN
+                                                                    ERROR(TE_Text007, FIELDCAPTION("Plan Redelivery Date from"), FIELDCAPTION("Plan Redelivery Date to"));
+                                                                  END;
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Redelivery Date to;
+                                                              ENU=Redelivery Date to] }
+    { 297 ;   ;Plan Redelivery Time;Time          ;CaptionML=[DEU=Redelivery Time (UTC);
+                                                              ENU=Redelivery Time (UTC)] }
+    { 298 ;   ;Plan Delivery Port Name;Text50     ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Port Chartering".PortName_fTxt WHERE (PortNo_fCod=FIELD(Plan Delivery Port)));
+                                                   CaptionML=[DEU=Delivery Port Name;
+                                                              ENU=Delivery Port Name];
+                                                   Editable=No }
+    { 299 ;   ;Plan Redelivery Port Name;Text50   ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Port Chartering".PortName_fTxt WHERE (PortNo_fCod=FIELD(Plan Redelivery Port)));
+                                                   CaptionML=[DEU=Redelivery Port Name;
+                                                              ENU=Redelivery Port Name];
+                                                   Editable=No }
+    { 300 ;   ;Bunker to be invoiced;Boolean      ;CaptionML=[DEU=Bunker to be invoiced;
+                                                              ENU=Bunker to be invoiced] }
+    { 301 ;   ;Break Clause (Days) ;Integer       ;CaptionML=[DEU=Break Clause (Days);
+                                                              ENU=Break Clause (Days)] }
+    { 302 ;   ;Bunker Description 1;Text50        ;CaptionML=[DEU=Bunker Description 1;
+                                                              ENU=Bunker Description 1] }
+    { 303 ;   ;Bunker Description 2;Text50        ;CaptionML=[DEU=Bunker Description 2;
+                                                              ENU=Bunker Description 2] }
+    { 304 ;   ;Bunker Description 3;Text50        ;CaptionML=[DEU=Bunker Description 3;
+                                                              ENU=Bunker Description 3] }
+    { 305 ;   ;Bunker to be invoiced on;Option    ;OnValidate=BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                CALCFIELDS("Invoice Period");
+                                                                IF ("Invoice Period") AND("Bunker to be invoiced on" > 0) THEN
+                                                                 ERROR(TE_Text008);
+                                                                VALIDATE("Bunker to be invoiced","Bunker to be invoiced on">0);
+                                                              END;
+
+                                                   CaptionML=[DEU=Bunker to be invoiced on;
+                                                              ENU=Bunker to be invoiced on];
+                                                   OptionCaptionML=[DEU=" ,1 Hire Invoice,2 Hire Invoice,minor Discrepancies,Separately";
+                                                                    ENU=" ,1 Hire Invoice,2 Hire Invoice,minor Discrepancies,Separately"];
+                                                   OptionString=[ ,1 Hire Invoice,2 Hire Invoice,minor Discrepancies,Separately] }
+    { 306 ;   ;Currency Code Bunker Invoice;Code10;OnValidate=VAR
+                                                                Currency@1119430000 : Record 5058802;
+                                                                LO_RE_OrderCharteringFreight@1119430001 : Record 5059041;
+                                                              BEGIN
+                                                                TESTFIELD(Status,Status::Open);
+                                                                GLSetup.GET;
+                                                                IF NOT ("Currency Code"  IN ['',GLSetup."LCY Code"]) THEN BEGIN
+                                                                  Currency.GET('',"Currency Code");
+                                                                END;
+
+                                                                IF  "Currency Code Bunker Invoice" <> xRec."Currency Code Bunker Invoice" THEN BEGIN
+                                                                  UpdateCurrencyFactor;
+                                                                END;
+                                                              END;
+
+                                                   OnLookup=BEGIN
+                                                              LookUpCurrencyCodeBunker;
+                                                            END;
+
+                                                   CaptionML=[DEU=Bunker Invoice Currency Code;
+                                                              ENU=Bunker Invoice Currency Code] }
+    { 307 ;   ;Currency Factor     ;Decimal       ;InitValue=1;
+                                                   OnValidate=BEGIN
+                                                                UpdateBunker;
+                                                              END;
+
+                                                   CaptionML=[DEU=Currency Factor;
+                                                              ENU=Currency Factor];
+                                                   DecimalPlaces=0:15;
+                                                   MinValue=0 }
+    { 308 ;   ;Bunker Currency     ;Option        ;CaptionML=[DEU=Bunker Currency;
+                                                              ENU=Bunker Currency];
+                                                   OptionCaptionML=[DEU=USD,EUR;
+                                                                    ENU=USD,EUR];
+                                                   OptionString=USD,EUR }
+    { 309 ;   ;CVE Calculation     ;Option        ;CaptionML=[DEU=CVE Calculation;
+                                                              ENU=CVE Calculation];
+                                                   OptionCaptionML=[DEU=30 days,365 days;
+                                                                    ENU=30 days,365 days];
+                                                   OptionString=30 days,365 days }
+    { 310 ;   ;Plan Redelivery Area Code;Code10   ;TableRelation="Shipping Area".Number_fCod;
+                                                   CaptionML=[DEU=Plan Redelivery Area Code;
+                                                              ENU=Plan Redelivery Area Code] }
+    { 311 ;   ;Plan Redelivery Area Name;Text50   ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Shipping Area".Name_fTxt WHERE (Number_fCod=FIELD(Plan Redelivery Area Code)));
+                                                   CaptionML=[DEU=Plan Redelivery Area Name;
+                                                              ENU=Plan Redelivery Area Name];
+                                                   Editable=No }
+    { 312 ;   ;Plan Delivery Local Time;Time      ;CaptionML=[DEU=Delivery Time (LT);
+                                                              ENU=Delivery Time (LT)] }
+    { 313 ;   ;Plan Redelivery Local Time;Time    ;CaptionML=[DEU=Redelivery Time (LT);
+                                                              ENU=Redelivery Time (LT)] }
+    { 320 ;   ;Duration Calc Reference;Option     ;CaptionML=[DEU=Duration Calc Reference;
+                                                              ENU=Duration Calc Reference];
+                                                   OptionCaptionML=[DEU=from,mid,until;
+                                                                    ENU=from,mid,until];
+                                                   OptionString=from,mid,until }
+    { 400 ;   ;Status              ;Option        ;CaptionML=[DEU=Status;
+                                                              ENU=Status];
+                                                   OptionCaptionML=[DEU=Open,Released;
+                                                                    ENU=Open,Released];
+                                                   OptionString=Open,Released }
+    { 401 ;   ;Invoice interval    ;Option        ;CaptionML=[DEU=Invoice interval;
+                                                              ENU=Invoice interval];
+                                                   OptionCaptionML=[DEU=Daily,Monthly,BME;
+                                                                    ENU=Daily,Monthly,BME];
+                                                   OptionString=Daily,Monthly,BME }
+    { 402 ;   ;Timebase            ;Option        ;CaptionML=[DEU=UTC / LT;
+                                                              ENU=UTC / LT];
+                                                   OptionCaptionML=[DEU=UTC,LT;
+                                                                    ENU=UTC,LT];
+                                                   OptionString=UTC,LT }
+    { 403 ;   ;Charterers Vessel Name;Text50      ;CaptionML=[DEU=Charterers Vessel Name;
+                                                              ENU=Charterers Vessel Name] }
+    { 404 ;   ;Invoice Period      ;Boolean       ;FieldClass=FlowField;
+                                                   CalcFormula=Exist("Time Charter Invoice Period" WHERE (Order No.=FIELD(Order No.)));
+                                                   CaptionML=[DEU=Invoice Period;
+                                                              ENU=Invoice Period] }
+    { 405 ;   ;Plan Delivery Area 2;Code20        ;CaptionML=[DEU=Plan Delivery Area 2;
+                                                              ENU=Plan Delivery Area 2] }
+    { 406 ;   ;Plan Delivery Area 3;Code20        ;CaptionML=[DEU=Plan Delivery Area 3;
+                                                              ENU=Plan Delivery Area 3] }
+    { 407 ;   ;Plan Delivery Area 4;Code20        ;CaptionML=[DEU=Plan Delivery Area 4;
+                                                              ENU=Plan Delivery Area 4] }
+    { 408 ;   ;Plan Delivery Area 5;Code20        ;CaptionML=[DEU=Plan Delivery Area 5;
+                                                              ENU=Plan Delivery Area 5] }
+    { 409 ;   ;Plan Redelivery Area 2;Code20      ;CaptionML=[DEU=Plan Redelivery Area 2;
+                                                              ENU=Plan Redelivery Area 2] }
+    { 410 ;   ;Plan Redelivery Area 3;Code20      ;CaptionML=[DEU=Plan Redelivery Area 3;
+                                                              ENU=Plan Redelivery Area 3] }
+    { 411 ;   ;Plan Redelivery Area 4;Code20      ;CaptionML=[DEU=Plan Redelivery Area 4;
+                                                              ENU=Plan Redelivery Area 4] }
+    { 412 ;   ;Plan Redelivery Area 5;Code20      ;CaptionML=[DEU=Plan Redelivery Area 5;
+                                                              ENU=Plan Redelivery Area 5] }
+    { 480 ;   ;Dimension Set ID    ;Integer       ;TableRelation="Dimension Set Entry";
+                                                   OnLookup=BEGIN
+                                                              ShowDocDim;
+                                                            END;
+
+                                                   CaptionML=[DEU=Dimensionssatz-ID;
+                                                              ENU=Dimension Set ID];
+                                                   Editable=No }
+    { 481 ;   ;Type                ;Option        ;OnValidate=BEGIN
+                                                                IF Type = Type::" " THEN
+                                                                  VALIDATE("Commission %", 0)
+                                                                ELSE BEGIN
+                                                                  SalesSetup_gRec.GET;
+                                                                  "Commission Posting Description" := STRSUBSTNO('%1', "Commission %") + '% ' + SalesSetup_gRec."Commission Posting Description";
+                                                                END;
+                                                              END;
+
+                                                   CaptionML=[DEU=Type;
+                                                              ENU=Type];
+                                                   OptionCaptionML=[DEU=" ,Commission";
+                                                                    ENU=" ,Commission"];
+                                                   OptionString=[ ,Commission] }
+    { 482 ;   ;Commission %        ;Decimal       ;OnValidate=VAR
+                                                                TimeCharterCashFlowLine@1000000000 : Record 5059050;
+                                                              BEGIN
+                                                                TimeCharterCashFlowLine.SETRANGE("Order No.", "Order No.");
+                                                                LOCKTABLE;
+                                                                MODIFY;
+                                                                IF TimeCharterCashFlowLine.FINDSET THEN BEGIN
+                                                                  MODIFY;
+                                                                  REPEAT
+                                                                    TimeCharterCashFlowLine.UpdateAmounts;
+                                                                    TimeCharterCashFlowLine.MODIFY;
+                                                                  UNTIL TimeCharterCashFlowLine.NEXT = 0;
+                                                                END;
+                                                                TimeCharterCashFlowLine.RESET;
+
+                                                                SalesSetup_gRec.GET;
+                                                                //"Commission Posting Description" := STRSUBSTNO('%1', "Commission %") + '% ' + SalesSetup_gRec."Commission Posting Description";
+                                                                "Commission Posting Description" := STRSUBSTNO(SalesSetup_gRec."Commission Posting Description" , FORMAT("Commission %") + FORMAT('% '));
+                                                              END;
+
+                                                   MinValue=0;
+                                                   MaxValue=100 }
+    { 483 ;   ;Commission Posting Description;Text50;
+                                                   CaptionML=[DEU=Commission Posting Description;
+                                                              ENU=Commission Posting Description] }
+    { 484 ;   ;Charterer Code      ;Code20        ;CaptionML=[DEU=Charterer;
+                                                              ENU=Charterer] }
+    { 485 ;   ;Charter Name        ;Text50        ;CaptionML=[DEU=Charter Name;
+                                                              ENU=Charter Name] }
+    { 486 ;   ;Order Direction     ;Option        ;CaptionML=[DEU=Order Direction;
+                                                              ENU=Order Direction];
+                                                   OptionCaptionML=[DEU=TC-OUT,TC-IN;
+                                                                    ENU=TC-OUT,TC-IN];
+                                                   OptionString=TC-OUT,TC-IN }
+  }
+  KEYS
+  {
+    {    ;Order No.                               ;Clustered=Yes }
+    {    ;CP Type,Customer/Vendor No.              }
+    {    ;Bill-to/Pay-to No.,CP Type               }
+    {    ;Customer/Vendor No.                      }
+    {    ;Customer/Vendor Name                    ;MaintainSQLIndex=No;
+                                                   MaintainSIFTIndex=No }
+    {    ;Status                                   }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      SalesSetup_gRec@1119200001 : Record 311;
+      PurchSetup_gRec@1000000010 : Record 312;
+      GLSetup@1119430005 : Record 98;
+      NoSeriesMgt_gCdu@1119200000 : Codeunit 396;
+      TCOrder_gRec@1119200002 : Record 5059040;
+      OCExists_gCtx@1119200003 : TextConst 'DEU=The Order Chatering %2 does already exist.;ENU=The Order Chatering %2 does already exist.';
+      OrderTCLine@1119430003 : Record 5059041;
+      DimMgt_gCdu@1119200004 : Codeunit 408;
+      Cust@1000000000 : Record 18;
+      Vessel@1000000001 : Record 5059055;
+      Text001_gCtx@1119430001 : TextConst 'DEU=The %1 of the %2 is different of the %1 from the %3.\Do you will change the %1 in the %2?;ENU=The %1 of the %2 is different of the %1 from the %3.\Do you will change the %1 in the %2?';
+      Text002_gCtx@1119430002 : TextConst 'DEU=You change on field %1 is not accept.;ENU=You change on field %1 is not accept.';
+      BankAccount_gRec@1119430004 : Record 270;
+      PostCode@1119430007 : Record 225;
+      Text003_gCtx@1119430008 : TextConst 'DEU="Payment Terms are not defined by %1 %2 ";ENU="Payment Terms are not defined by %1 %2 "';
+      Text004_gCtx@1119430009 : TextConst 'DEU="%1 are not defined by %2 %3 ";ENU="%1 are not defined by %2 %3 "';
+      TE_Text005@1000000006 : TextConst 'DEU="No Bank Account in Company %1 found. The Bank account has to have the %2 %3 and Type %4. ";ENU="No Bank Account in Company %1 found. The Bank account has to have the %2 %3 and Type %4. "';
+      TE_Text006@1000000007 : TextConst 'DEU=The %1 is not empty. Do you will overwrite %2 %3?;ENU=The %1 is not empty. Do you will overwrite %2 %3?';
+      TE_Text007@1000000008 : TextConst 'DEU=%1 must not bigger then %2.;ENU=%1 must not bigger then %2.';
+      TE_Text008@1000000002 : TextConst 'DEU=Manuel Invoice Periods exist. Bunker needs to be defined manually.;ENU=Manuel Invoice Periods exist. Bunker needs to be defined manually.';
+      TE_Text009@1000000003 : TextConst 'DEU=You cannot delete %1 because the document has one or more invoiced Cash Flow Lines.;ENU=You cannot delete %1 because the document  has one or more invoiced Cash Flow Lines.';
+      DimMgt@1000000004 : Codeunit 408;
+      TE_Text010@1000000005 : TextConst 'DEU=There are invoiced Cash Flow Lines for the Time Charter Order %1.;ENU=There are invoiced Cash Flow Lines for the Time Charter Order %1.';
+      Vend@1000000009 : Record 23;
+      CompanyPaM@1100000009 : Record 5058820;
+
+    PROCEDURE AssistEdit_gFnc@1(OldOrder_iRec@1000 : Record 5059040) : Boolean;
+    VAR
+      TCOrder_lRec@1001 : Record 5059040;
+    BEGIN
+      WITH TCOrder_gRec DO BEGIN
+        COPY(Rec);
+        IF "Order Direction" = "Order Direction"::"TC-OUT" THEN BEGIN
+          SalesSetup_gRec.GET;
+          SalesSetup_gRec.TESTFIELD(OrderTimeCharterNos_fCod);
+          IF NoSeriesMgt_gCdu.SelectSeries(SalesSetup_gRec.OrderTimeCharterNos_fCod,OldOrder_iRec.Region,
+                                          Region) THEN BEGIN
+            NoSeriesMgt_gCdu.SetSeries("Order No.");
+            IF TCOrder_lRec.GET("Order No.") THEN
+              ERROR(OCExists_gCtx,"Order No.");
+            Rec := TCOrder_gRec;
+            EXIT(TRUE);
+          END;
+        END ELSE BEGIN
+          PurchSetup_gRec.GET;
+          PurchSetup_gRec.TESTFIELD(OrderTimeCharterNos_fCod);
+          IF NoSeriesMgt_gCdu.SelectSeries(PurchSetup_gRec.OrderTimeCharterNos_fCod,OldOrder_iRec.Region,
+                                          Region) THEN BEGIN
+            NoSeriesMgt_gCdu.SetSeries("Order No.");
+            IF TCOrder_lRec.GET("Order No.") THEN
+              ERROR(OCExists_gCtx,"Order No.");
+            Rec := TCOrder_gRec;
+            EXIT(TRUE);
+          END;
+        END;
+      END;
+    END;
+
+    PROCEDURE ValidateShortcutDimCode_gFnc@29(FieldNumber@1000 : Integer;VAR ShortcutDimCode@1001 : Code[20]);
+    BEGIN
+      DimMgt_gCdu.ValidateDimValueCode(FieldNumber,ShortcutDimCode);
+      ValidateShortcutDimCode(FieldNumber,ShortcutDimCode);
+    END;
+
+    LOCAL PROCEDURE GetCust@2(CustNo@1000 : Code[20]);
+    BEGIN
+      IF CustNo <> Cust."No." THEN
+        IF NOT Cust.GET(CustNo) THEN
+          CLEAR(Cust);
+    END;
+
+    LOCAL PROCEDURE GetVend@1000000005(VendNo@1000 : Code[20]);
+    BEGIN
+      IF VendNo <> Vend."No." THEN
+        IF NOT Vend.GET(VendNo) THEN
+          CLEAR(Vend);
+    END;
+
+    PROCEDURE GetVessel@1119430000();
+    VAR
+      DimValue_lRec@1119430001 : Record 349;
+      GLSetup_lRec@1119430000 : Record 98;
+    BEGIN
+      IF "Voyage No." = '' THEN
+        EXIT;
+
+      CASE STRLEN(DELCHR("Voyage No.")) OF
+        8 : "Vessel No." := COPYSTR(DELCHR("Voyage No."),3,3);
+        10: "Vessel No." := COPYSTR(DELCHR("Voyage No."),5,3);
+      END;
+      IF NOT Vessel.GET("Vessel No.") THEN
+        CLEAR(Vessel);
+      VALIDATE("Vessel Class",Vessel."Vessel Class Code");
+
+      GLSetup_lRec.GET;
+      IF DimValue_lRec.GET(GLSetup_lRec."Shortcut Dimension 2 Code","Voyage No.") THEN
+        IF DimValue_lRec."Vessel No." <> "Vessel No." THEN BEGIN
+          DimValue_lRec."Vessel No." := "Vessel No.";
+          DimValue_lRec.MODIFY;
+        END;
+      CALCFIELDS("Vessel Name");
+    END;
+
+    PROCEDURE LookUpCurrencyCode@1119430001() : Boolean;
+    VAR
+      Currency@1119430001 : Record 5058802;
+      TempCurrency@1119430000 : TEMPORARY Record 5058802;
+    BEGIN
+      //Currency.SETRANGE("List Invoice Tool",TRUE);
+      //Currency.SETRANGE("Buying/Selling Rate",Currency."Buying/Selling Rate"::"0");
+      IF Currency.FINDSET THEN REPEAT
+        TempCurrency := Currency;
+        TempCurrency.INSERT;
+      UNTIL Currency.NEXT = 0;
+      GLSetup.GET;
+      IF GLSetup."LCY Code" <> '' THEN BEGIN
+        CLEAR(Currency);
+        IF NOT Currency.GET(GLSetup."LCY Code") THEN BEGIN
+          Currency.Description := GLSetup."LCY Code";
+        END;
+
+        TempCurrency.INIT;
+        TempCurrency.Code := GLSetup."LCY Code";
+        TempCurrency.Description := Currency.Description;
+        IF TempCurrency.INSERT THEN;
+      END;
+      IF PAGE.RUNMODAL(0,TempCurrency) = ACTION::LookupOK THEN BEGIN
+        VALIDATE("Currency Code",TempCurrency.Code);
+        EXIT(TRUE);
+      END;
+    END;
+
+    PROCEDURE CheckPaymentTerms@1119430002();
+    BEGIN
+      IF "Order No." = '' THEN BEGIN
+        EXIT;
+      END;
+      IF "Voyage No." = '' THEN BEGIN
+        EXIT;
+      END;
+      IF ("Payment Terms Code" = '') THEN BEGIN
+        ERROR(Text003_gCtx,TABLECAPTION,"Order No.");
+      END;
+    END;
+
+    PROCEDURE LO_FU_CalcDuration@1000000000(I_BO_FromDate@1000000000 : Boolean);
+    VAR
+      DA_CalcRefDate@1119430000 : Date;
+    BEGIN
+      TESTFIELD(Status, Status::Open);
+      IF "Duration Calc Reference" = "Duration Calc Reference"::from THEN BEGIN
+        //DA_CalcRefDate := "Laycan from";
+        DA_CalcRefDate := "Plan Delivery Date from";
+      END;
+      IF "Duration Calc Reference" = "Duration Calc Reference"::mid THEN BEGIN
+        //DA_CalcRefDate := CALCDATE('<+'+FORMAT(ROUND(("Laycan until"-"Laycan from")/2, 1))+'D>', "Laycan from");
+        DA_CalcRefDate := CALCDATE('<+'+FORMAT(ROUND(("Plan Delivery Date to"-"Plan Delivery Date from")/2, 1))+'D>', "Laycan from");
+      END;
+      IF "Duration Calc Reference" = "Duration Calc Reference"::"until" THEN BEGIN
+        //DA_CalcRefDate := "Laycan until";
+        DA_CalcRefDate := "Plan Delivery Date to";
+      END;
+      IF Duration <> 0 THEN BEGIN
+        IF NOT CONFIRM(STRSUBSTNO(TE_Text006, FIELDCAPTION(Duration), Duration, "Duration Type"), FALSE) THEN BEGIN
+          EXIT;
+        END;
+      END;
+
+      "Duration Type" := "Duration Type"::Days;
+      IF I_BO_FromDate THEN BEGIN
+        Duration := "Plan Redelivery Date from" - DA_CalcRefDate;
+      END ELSE BEGIN
+        Duration := "Plan Redelivery Date to" - DA_CalcRefDate;
+      END;
+      VALIDATE(Duration, Duration + 1);
+      MODIFY(TRUE);
+    END;
+
+    PROCEDURE SetVesselFilter@1119430016();
+    VAR
+      LO_RE_Vessel@1119430001 : Record 5059055;
+      LO_CO_Filter@1119430000 : Code[80];
+    BEGIN
+      SETFILTER("Vessel No.", LO_RE_Vessel.GetUserVesselFilter);
+    END;
+
+    PROCEDURE UpdateLines@1119430003();
+    VAR
+      LO_RE_Lines@1119430000 : Record 5059041;
+    BEGIN
+      IF ("Delivery Date" = 0D) OR ("Delivery Time (UTC)" = 0T) THEN
+        EXIT;
+
+      LO_RE_Lines.LOCKTABLE;
+      LO_RE_Lines.SETRANGE(LO_RE_Lines."Order No.","Order No.");
+      LO_RE_Lines.SETRANGE(LO_RE_Lines."Period No.",1);
+      IF LO_RE_Lines.FINDSET THEN
+      REPEAT
+        LO_RE_Lines."Fixed / Actual" := LO_RE_Lines."Fixed / Actual"::Actual;
+        LO_RE_Lines.VALIDATE("(A) Period from","Delivery Date");
+        LO_RE_Lines.VALIDATE("(A) Period from Time (UTC)","Delivery Time (UTC)");
+        LO_RE_Lines.VALIDATE(LO_RE_Lines."(A) Period end at Time (UTC)","Delivery Time (UTC)");
+        LO_RE_Lines.MODIFY;
+      UNTIL LO_RE_Lines.NEXT=0;
+    END;
+
+    PROCEDURE LookUpCurrencyCodeBunker@1000000001() : Boolean;
+    VAR
+      Currency@1119430001 : Record 5058802;
+      TempCurrency@1119430000 : TEMPORARY Record 5058802;
+    BEGIN
+      IF Status <> Status::Open THEN EXIT;
+
+      //Currency.SETRANGE("List Invoice Tool",TRUE);
+      //Currency.SETRANGE("Buying/Selling Rate",Currency."Buying/Selling Rate"::"0");
+      IF Currency.FINDSET THEN REPEAT
+        TempCurrency := Currency;
+        TempCurrency.INSERT;
+      UNTIL Currency.NEXT = 0;
+
+      GLSetup.GET;
+      IF GLSetup."LCY Code" <> '' THEN BEGIN
+        CLEAR(Currency);
+        IF NOT Currency.GET(GLSetup."LCY Code") THEN BEGIN
+          Currency.Description := GLSetup."LCY Code";
+        END;
+        TempCurrency.INIT;
+        TempCurrency.Code := GLSetup."LCY Code";
+        TempCurrency.Description := Currency.Description;
+        IF TempCurrency.INSERT THEN;
+      END;
+
+      IF PAGE.RUNMODAL(0,TempCurrency) = ACTION::LookupOK THEN BEGIN
+        VALIDATE("Currency Code Bunker Invoice",TempCurrency.Code);
+        EXIT(TRUE);
+      END;
+    END;
+
+    LOCAL PROCEDURE UpdateCurrencyFactor@12();
+    VAR
+      CurrencyDate@1000000000 : Date;
+      CurrExchRate@1000000001 : Record 330;
+      CreditDebitVar@1000000002 : 'Credit,Debit';
+      LO_RE_SalesSetup@1000000003 : Record 311;
+      LO_RE_PurchSetup@1000000004 : Record 312;
+    BEGIN
+      IF "Order Direction" = "Order Direction"::"TC-OUT" THEN BEGIN
+        LO_RE_SalesSetup.GET;
+        IF "Currency Code Bunker Invoice" = LO_RE_SalesSetup."Currency Code Bunker Invoice" THEN BEGIN
+          "Currency Factor" := 1;
+        END ELSE BEGIN
+          IF "Currency Code Bunker Invoice" <> '' THEN BEGIN
+            CurrencyDate := WORKDATE;
+            CurrExchRate.SetGlobalCompanyName("Company Name");
+            //"Currency Factor" := ROUND(1/ CurrExchRate.ExchangeRate(CurrencyDate,LO_RE_SalesSetup."Currency Code Bunker Invoice"),0.0001);
+            "Currency Factor" := CurrExchRate.ExchangeRate(CurrencyDate,LO_RE_SalesSetup."Currency Code Bunker Invoice");
+          END ELSE BEGIN
+            "Currency Factor" := 1;
+          END;
+        END;
+      END ELSE BEGIN
+        LO_RE_PurchSetup.GET;
+        IF "Currency Code Bunker Invoice" = LO_RE_PurchSetup."Currency Code Bunker Invoice" THEN BEGIN
+          "Currency Factor" := 1;
+        END ELSE BEGIN
+          IF "Currency Code Bunker Invoice" <> '' THEN BEGIN
+            CurrencyDate := WORKDATE;
+            CurrExchRate.SetGlobalCompanyName("Company Name");
+            "Currency Factor" := CurrExchRate.ExchangeRate(CurrencyDate,LO_RE_PurchSetup."Currency Code Bunker Invoice");
+          END ELSE BEGIN
+            "Currency Factor" := 1;
+          END;
+        END;
+      END;
+      UpdateBunker;
+    END;
+
+    PROCEDURE UpdateBunker@1000000002();
+    VAR
+      LO_RE_Bunker@1000000000 : Record 5059045;
+    BEGIN
+      LO_RE_Bunker.SETRANGE(LO_RE_Bunker."Time Charter Order No.","Order No.");
+      IF LO_RE_Bunker.FINDSET THEN
+      REPEAT
+        LO_RE_Bunker."Currency Factor" := ROUND(1 / "Currency Factor",0.0001);
+        LO_RE_Bunker."Invoice Currency Code" := "Currency Code Bunker Invoice";
+        LO_RE_Bunker.CalcAmountHLY;
+        LO_RE_Bunker.MODIFY;
+      UNTIL LO_RE_Bunker.NEXT=0;
+    END;
+
+    PROCEDURE ShowDocDim@32();
+    VAR
+      OldDimSetID@1000 : Integer;
+    BEGIN
+      OldDimSetID := "Dimension Set ID";
+      "Dimension Set ID" :=
+        DimMgt.EditDimensionSet2(
+          "Dimension Set ID",STRSUBSTNO('%1 %2',TABLECAPTION,"Order No."),
+          "Shortcut Dimension 1 Code","Shortcut Dimension 2 Code");
+      IF OldDimSetID <> "Dimension Set ID" THEN BEGIN
+        MODIFY;
+      END;
+    END;
+
+    PROCEDURE ValidateShortcutDimCode@19(FieldNumber@1000 : Integer;VAR ShortcutDimCode@1001 : Code[20]);
+    VAR
+      OldDimSetID@1005 : Integer;
+    BEGIN
+      OldDimSetID := "Dimension Set ID";
+      DimMgt.ValidateShortcutDimValues(FieldNumber,ShortcutDimCode,"Dimension Set ID");
+      IF "Order No." <> '' THEN
+        MODIFY;
+
+      IF OldDimSetID <> "Dimension Set ID" THEN BEGIN
+        MODIFY;
+      END;
+    END;
+
+    LOCAL PROCEDURE LookUpVoyageNo@1000000003();
+    VAR
+      DimensionValue@1000000000 : Record 349;
+    BEGIN
+      SalesSetup_gRec.GET;
+      SalesSetup_gRec.TESTFIELD(DimensionVoyage_fCod);
+      DimensionValue.RESET;
+      DimensionValue.SETRANGE("Dimension Code",SalesSetup_gRec.DimensionVoyage_fCod);
+      IF PAGE.RUNMODAL(0,DimensionValue) = ACTION::LookupOK THEN
+       VALIDATE("Voyage No.",DimensionValue.Code);
+    END;
+
+    PROCEDURE CheckInvoicedCashFlowLines@1000000004();
+    VAR
+      LO_RE_InvProp@1000000000 : Record 5059050;
+    BEGIN
+      LO_RE_InvProp.RESET;
+      LO_RE_InvProp.SETRANGE(LO_RE_InvProp."Order No.","Order No.");
+      LO_RE_InvProp.SETRANGE(LO_RE_InvProp.Invoiced,TRUE);
+      IF LO_RE_InvProp.FINDFIRST THEN
+        ERROR(TE_Text010,"Order No.");
+    END;
+
+    BEGIN
+    END.
+  }
+}
+
